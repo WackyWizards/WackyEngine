@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="WackyEngine.vcxproj" Id="9d4c75b1-7733-475a-a280-fadafe6059d7" />
+</Solution>
