@@ -1,11 +1,50 @@
-*.obj
-.vs/*
-.idea/*
-x64/*
-x64/Debug/*
-WackyEngine/*
+# Build folders
+build/
+bin/
+out/
+x64/
+Debug/
+Release/
 
-vendor/vulkan/**/Lib/
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+
+# Rider
+.idea/
+
+# Compiled objects
+*.obj
+*.o
+*.lo
+*.slo
+
+# Libraries / binaries
 *.lib
 *.dll
+*.exe
+*.exp
+*.ilk
 *.pdb
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# Shader outputs
+*.spv
+*.cso
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Vendor binaries
+vendor/**/lib/
+vendor/**/bin/
+vendor/**/build/
