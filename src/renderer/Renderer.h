@@ -5,14 +5,14 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <string>
-#include "Game.h"
+#include "core\Game.h"
 #include "imgui_impl_vulkan.h"
 
 struct EditorStats
 {
-	/* Seconds since last frame */
+	/** Seconds since last frame */
 	float deltaTime = 0;
-	/* 1.f / deltaTime, smoothed */
+	/** 1.f / deltaTime, smoothed */
 	float fps = 0;
 };
 
