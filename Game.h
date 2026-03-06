@@ -67,15 +67,17 @@ enum class Key : int
 
 struct Sprite
 {
-    /*NDC centre position*/
+    /** NDC centre position */
     float x = 0, y = 0;
-    /*Half-extents*/
+    /** Half-extents */
     float halfW = 0, halfH = 0;
-    /*Color*/
+    /** Color */
     float r = 0, g = 0, b = 0;
 };
 
-static constexpr int MAX_SPRITES = 4;
+// Hard limit is the device's maxStorageBufferRange
+// (guaranteed >= 128 MB on any Vulkan 1.0+ implementation).
+static constexpr int MAX_SPRITES = 1024;
 
 struct SpriteList
 {
@@ -99,13 +101,11 @@ struct SpriteList
     }
 };
 
-static_assert(sizeof(SpriteList) <= 128, "SpriteList exceeds push-constant budget");
-
 /*
 * Engine API
 * static inline members are per-DLL, the engine exe and game DLL each get their own copy.
 * Binding in the engine would never be seen by the DLL.
-* 
+*
 * Solution: the engine passes a plain struct of function pointers to Game::Init(). The API classes store them as plain (non-static) members on a singleton that lives inside the game DLL, so there's only one copy.
 */
 struct EngineBindings

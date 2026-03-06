@@ -1,11 +1,18 @@
-[[vk::push_constant]]
-cbuffer PC
+// Sprite data is uploaded each frame into a per-frame storage buffer.
+// The draw call passes exactly scene.count * 6 vertices, so no count
+// field is needed in the shader itself.
+struct Sprite
 {
-    float data[29]; // [sprite * 7 + field], count packed as float in slot 28
+    float x, y;
+    float halfW, halfH;
+    float r, g, b;
 };
 
+[[vk::binding(0, 0)]]
+StructuredBuffer<Sprite> sprites;
+
 // Two triangles per quad, 6 vertices each.
-// Corner offsets: BL BR TR | BL TR TL
+// Corner offsets: TL TR BR | TL BR BL
 static const float2 OFFSETS[6] =
 {
     float2(-1, +1), float2(+1, +1), float2(+1, -1),
@@ -21,23 +28,15 @@ struct VSOutput
 [shader("vertex")]
 VSOutput VSMain(uint vertexID : SV_VertexID)
 {
-    int si   = (int)vertexID / 6; // which sprite
-    int vi   = (int)vertexID % 6; // which corner
-    int base = si * 7;
+    int si = (int)vertexID / 6; // which sprite
+    int vi = (int)vertexID % 6; // which corner
 
-    float x = data[base + 0];
-    float y = data[base + 1];
-    float halfW = data[base + 2];
-    float halfH = data[base + 3];
-    float r = data[base + 4];
-    float g = data[base + 5];
-    float b = data[base + 6];
-
-    float2 pos = float2(x, y) + OFFSETS[vi] * float2(halfW, halfH);
+    Sprite s = sprites[si];
+    float2 pos = float2(s.x, s.y) + OFFSETS[vi] * float2(s.halfW, s.halfH);
 
     VSOutput o;
-    o.pos = float4(pos, 0.0, 1.0);
-    o.color = float3(r, g, b);
+    o.pos   = float4(pos, 0.0, 1.0);
+    o.color = float3(s.r, s.g, s.b);
     return o;
 }
 

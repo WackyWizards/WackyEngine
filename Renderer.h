@@ -85,6 +85,36 @@ private:
 	bool framebufferResized = false;
 	///@}
 
+	/** @name Sprite SSBO
+	 *
+	 *  One host-visible, persistently-mapped storage buffer per frame in flight.
+	 *  Each frame the CPU memcpy's the current SpriteList into the buffer for
+	 *  that frame slot, then the GPU reads it via the matching descriptor set.
+	 *  No push-constant budget constraint; MAX_SPRITES can be raised freely.
+	 *
+	 *  Shader side (HLSL / Slang, set=0 binding=0):
+	 *    struct Sprite     { float x, y, halfW, halfH, r, g, b; };
+	 *    struct SpriteList { Sprite sprites[MAX_SPRITES]; uint count; };
+	 *    [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
+	 *
+	 *  Then index with:  SpriteList list = spriteData[0];
+	 */
+	 ///@{
+	VkDescriptorSetLayout spriteSetLayout = VK_NULL_HANDLE;
+	VkDescriptorPool      spriteDescriptorPool = VK_NULL_HANDLE;
+	std::vector<VkDescriptorSet>  spriteDescriptorSets;   // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<VkBuffer>         spriteBuffers;           // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<VkDeviceMemory>   spriteBufferMemory;      // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<void*>            spriteBufferMapped;      // [MAX_FRAMES_IN_FLIGHT] - persistently mapped
+
+	void CreateSpriteSetLayout();
+	void CreateSpriteBuffers();
+	void CreateSpriteDescriptorPool();
+	void CreateSpriteDescriptorSets();
+	/* Returns the index of the first memory type that satisfies both typeFilter and props. */
+	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
+	///@}
+
 	/** @name ImGui */
 	///@{
 	VkDescriptorPool imguiDescriptorPool = VK_NULL_HANDLE;
@@ -126,7 +156,7 @@ private:
 
 	/* Throws a runtime_error with the Vulkan result code name included. */
 	static void VkCheck(VkResult result, const char* msg);
-	/* Validation layer callback � prints to cout so errors appear in VS output. */
+	/* Validation layer callback - prints to cout so errors appear in VS output. */
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData);
 	///@}
 	/* GLFW calls this when the window is resized. Sets framebufferResized = true. */

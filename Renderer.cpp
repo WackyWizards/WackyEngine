@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include <iostream>
 #include <fstream>
+#include <cstring>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
@@ -118,6 +119,14 @@ Renderer::Renderer(GLFWwindow* w) : window(w)
 	CreateSurface();
 	PickPhysicalDevice();
 	CreateLogicalDevice();
+
+	// SSBO resources are device-lifetime (not swapchain-lifetime).
+	// They must exist before CreateGraphicsPipeline, which references spriteSetLayout.
+	CreateSpriteSetLayout();
+	CreateSpriteBuffers();
+	CreateSpriteDescriptorPool();
+	CreateSpriteDescriptorSets();
+
 	CreateSwapchain();
 	CreateImageViews();
 	CreateRenderPass();
@@ -148,6 +157,18 @@ Renderer::~Renderer()
 	}
 
 	vkDestroyCommandPool(device, commandPool, nullptr);
+
+	// Sprite SSBO cleanup. Unmap before destroying the memory.
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		vkUnmapMemory(device, spriteBufferMemory[i]);
+		vkDestroyBuffer(device, spriteBuffers[i], nullptr);
+		vkFreeMemory(device, spriteBufferMemory[i], nullptr);
+	}
+	// Freeing the pool implicitly frees all descriptor sets allocated from it.
+	vkDestroyDescriptorPool(device, spriteDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(device, spriteSetLayout, nullptr);
+
 	vkDestroyDevice(device, nullptr);
 
 	if (VALIDATION)
@@ -382,6 +403,121 @@ void Renderer::CreateSyncObjects()
 	}
 }
 
+uint32_t Renderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const
+{
+	VkPhysicalDeviceMemoryProperties memProps;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
+
+	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
+	{
+		if ((typeFilter & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & props) == props)
+		{
+			return i;
+		}
+	}
+
+	throw std::runtime_error("FindMemoryType: no suitable memory type found");
+}
+
+void Renderer::CreateSpriteSetLayout()
+{
+	// Binding 0: the SpriteList storage buffer, visible to the vertex shader.
+	// In HLSL/Slang:  [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
+	VkDescriptorSetLayoutBinding binding{};
+	binding.binding = 0;
+	binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	binding.descriptorCount = 1;
+	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	ci.bindingCount = 1;
+	ci.pBindings = &binding;
+	VkCheck(vkCreateDescriptorSetLayout(device, &ci, nullptr, &spriteSetLayout), "vkCreateDescriptorSetLayout sprite");
+}
+
+void Renderer::CreateSpriteBuffers()
+{
+	// One host-visible, persistently-mapped buffer per frame in flight.
+	// HOST_COHERENT means writes are visible to the GPU without an explicit flush.
+	const VkDeviceSize bufSize = sizeof(SpriteList);
+
+	spriteBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	spriteBufferMemory.resize(MAX_FRAMES_IN_FLIGHT);
+	spriteBufferMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		VkBufferCreateInfo bci{};
+		bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bci.size = bufSize;
+		bci.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		VkCheck(vkCreateBuffer(device, &bci, nullptr, &spriteBuffers[i]), "vkCreateBuffer sprite");
+
+		VkMemoryRequirements memReq;
+		vkGetBufferMemoryRequirements(device, spriteBuffers[i], &memReq);
+
+		VkMemoryAllocateInfo mai{};
+		mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		mai.allocationSize = memReq.size;
+		mai.memoryTypeIndex = FindMemoryType(
+			memReq.memoryTypeBits,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+		VkCheck(vkAllocateMemory(device, &mai, nullptr, &spriteBufferMemory[i]), "vkAllocateMemory sprite");
+
+		vkBindBufferMemory(device, spriteBuffers[i], spriteBufferMemory[i], 0);
+		vkMapMemory(device, spriteBufferMemory[i], 0, bufSize, 0, &spriteBufferMapped[i]);
+	}
+}
+
+void Renderer::CreateSpriteDescriptorPool()
+{
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	VkDescriptorPoolCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	ci.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	ci.poolSizeCount = 1;
+	ci.pPoolSizes = &poolSize;
+	VkCheck(vkCreateDescriptorPool(device, &ci, nullptr, &spriteDescriptorPool), "vkCreateDescriptorPool sprite");
+}
+
+void Renderer::CreateSpriteDescriptorSets()
+{
+	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, spriteSetLayout);
+
+	VkDescriptorSetAllocateInfo ai{};
+	ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	ai.descriptorPool = spriteDescriptorPool;
+	ai.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	ai.pSetLayouts = layouts.data();
+
+	spriteDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	VkCheck(vkAllocateDescriptorSets(device, &ai, spriteDescriptorSets.data()), "vkAllocateDescriptorSets sprite");
+
+	// Point each descriptor set at its corresponding buffer.
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		VkDescriptorBufferInfo bufInfo{};
+		bufInfo.buffer = spriteBuffers[i];
+		bufInfo.offset = 0;
+		bufInfo.range = sizeof(SpriteList);
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = spriteDescriptorSets[i];
+		write.dstBinding = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		write.pBufferInfo = &bufInfo;
+		vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+	}
+}
+
 void Renderer::CreateSwapchain()
 {
 	VkSurfaceCapabilitiesKHR caps;
@@ -491,15 +627,14 @@ void Renderer::CreateGraphicsPipeline()
 	stages[1].module = fMod;
 	stages[1].pName = "main";
 
-	VkPushConstantRange pcr{};
-	pcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	pcr.offset = 0;
-	pcr.size = sizeof(SpriteList);
-
+	// No push constants: sprite data now comes from the SSBO at set 0, binding 0.
+	// The shader must declare:
+	//   [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
+	// and index it as:  SpriteList list = spriteData[0];
 	VkPipelineLayoutCreateInfo layoutCI{};
 	layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutCI.pushConstantRangeCount = 1;
-	layoutCI.pPushConstantRanges = &pcr;
+	layoutCI.setLayoutCount = 1;
+	layoutCI.pSetLayouts = &spriteSetLayout;
 	VkResult pipelineLayoutResult = vkCreatePipelineLayout(device, &layoutCI, nullptr, &pipelineLayout);
 	VkCheck(pipelineLayoutResult, "vkCreatePipelineLayout");
 
@@ -640,6 +775,8 @@ void Renderer::RecreateSwapchain()
 	}
 
 	CreateRenderPass();
+	// spriteSetLayout is device-lifetime and survives swapchain recreation;
+	// CreateGraphicsPipeline reuses it directly.
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandBuffers();
@@ -660,6 +797,11 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 
 	vkResetFences(device, 1, &fence);
 
+	// Upload this frame's scene data into the matching SSBO slot.
+	// The fence above guarantees the GPU is no longer reading from this slot.
+	// HOST_COHERENT memory requires no explicit flush.
+	memcpy(spriteBufferMapped[currentFrame], &scene, sizeof(SpriteList));
+
 	VkCommandBuffer cmd = commandBuffers[currentFrame];
 	vkResetCommandBuffer(cmd, 0);
 
@@ -677,9 +819,19 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 
 	vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+	// Bind the sprite SSBO descriptor set for this frame slot.
+	vkCmdBindDescriptorSets(
+		cmd,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		pipelineLayout,
+		0,                                          // first set
+		1, &spriteDescriptorSets[currentFrame],     // one set
+		0, nullptr                                  // no dynamic offsets
+	);
+
 	if (scene.count > 0)
 	{
-		vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SpriteList), &scene);
 		vkCmdDraw(cmd, scene.count * 6, 1, 0, 0); // 6 verts per quad (2 triangles)
 	}
 
