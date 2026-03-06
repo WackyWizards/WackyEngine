@@ -1,6 +1,6 @@
 #pragma once
 
-/*Button keys*/
+/** Button keys */
 enum class Key : int
 {
     Space = 32,
@@ -110,7 +110,7 @@ struct SpriteList
 */
 struct EngineBindings
 {
-    float (*getdelta)() = nullptr;
+    float (*getDelta)() = nullptr;
     float (*getElapsed)() = nullptr;
     bool (*keyHeld)(Key) = nullptr;
     bool (*keyPressed)(Key) = nullptr;
@@ -125,7 +125,7 @@ struct Time
 {
     static float Delta()
     {
-        return g_engine.getdelta();
+        return g_engine.getDelta();
     }
 
     static float Elapsed()
@@ -159,7 +159,7 @@ class Game
 {
 public:
     virtual ~Game() = default;
-    /*Store bindings into g_engine and initialize the game, if needed.*/
+    /** Store bindings into g_engine and initialize the game, if needed. */
     virtual void Init(const EngineBindings& bindings) = 0;
     virtual void Update() = 0;
     virtual void Shutdown() = 0;

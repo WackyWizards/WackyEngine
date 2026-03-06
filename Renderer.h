@@ -6,8 +6,6 @@
 #include <vector>
 #include <string>
 #include "Game.h"
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 
 struct EditorStats
@@ -90,22 +88,21 @@ private:
 	 *  One host-visible, persistently-mapped storage buffer per frame in flight.
 	 *  Each frame the CPU memcpy's the current SpriteList into the buffer for
 	 *  that frame slot, then the GPU reads it via the matching descriptor set.
-	 *  No push-constant budget constraint; MAX_SPRITES can be raised freely.
 	 *
 	 *  Shader side (HLSL / Slang, set=0 binding=0):
 	 *    struct Sprite     { float x, y, halfW, halfH, r, g, b; };
 	 *    struct SpriteList { Sprite sprites[MAX_SPRITES]; uint count; };
 	 *    [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
 	 *
-	 *  Then index with:  SpriteList list = spriteData[0];
+	 *  Then index with: SpriteList list = spriteData[0];
 	 */
 	 ///@{
 	VkDescriptorSetLayout spriteSetLayout = VK_NULL_HANDLE;
-	VkDescriptorPool      spriteDescriptorPool = VK_NULL_HANDLE;
-	std::vector<VkDescriptorSet>  spriteDescriptorSets;   // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<VkBuffer>         spriteBuffers;           // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<VkDeviceMemory>   spriteBufferMemory;      // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<void*>            spriteBufferMapped;      // [MAX_FRAMES_IN_FLIGHT] - persistently mapped
+	VkDescriptorPool spriteDescriptorPool = VK_NULL_HANDLE;
+	std::vector<VkDescriptorSet> spriteDescriptorSets; // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<VkBuffer> spriteBuffers; // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<VkDeviceMemory> spriteBufferMemory; // [MAX_FRAMES_IN_FLIGHT]
+	std::vector<void*> spriteBufferMapped; // [MAX_FRAMES_IN_FLIGHT] - persistently mapped
 
 	void CreateSpriteSetLayout();
 	void CreateSpriteBuffers();
@@ -120,7 +117,7 @@ private:
 	VkDescriptorPool imguiDescriptorPool = VK_NULL_HANDLE;
 	void InitImGui();
 	void ShutdownImGui() const;
-	void DrawImGui(VkCommandBuffer cmd, const EditorStats& stats);
+	static void DrawImGui(VkCommandBuffer cmd, const EditorStats& stats);
 	///@}
 
 	/** @name Setup */
@@ -151,7 +148,9 @@ private:
 	/** @name Helpers */
 	///@{
 	/* Load a compiled shader file (.spv from glslc, dxc, or slangc). */
-	std::vector<char> ReadFile(const std::string& path);
+	static std::vector<char> ReadFile(const std::string& path);
+	
+	[[nodiscard]]
 	VkShaderModule CreateShaderModule(const std::vector<char>& code) const;
 
 	/* Throws a runtime_error with the Vulkan result code name included. */

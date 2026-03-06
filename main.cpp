@@ -1,11 +1,13 @@
 #include "Engine.h"
 
-/* Path to the game dll to load */
-static const char* gameDllPath = "SpaceShooter.dll";
+namespace
+{
+    /** Path to the game dll to load */
+    auto gameDllPath = "SpaceShooter.dll";
+}
 
 int main()
 {
-    Engine engine;
-    engine.Run(gameDllPath);
+    Engine::Run(gameDllPath);
     return 0;
 }

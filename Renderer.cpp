@@ -13,9 +13,12 @@ static constexpr bool VALIDATION = false;
 static constexpr bool VALIDATION = true;
 #endif
 
-static const char* VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
+namespace
+{
+	auto VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
+}
 
-void Renderer::VkCheck(VkResult result, const char* msg)
+void Renderer::VkCheck(const VkResult result, const char* msg)
 {
 	if (result == VK_SUCCESS)
 	{
@@ -23,7 +26,7 @@ void Renderer::VkCheck(VkResult result, const char* msg)
 	}
 
 	// Convert the result code to a readable string
-	const char* resultStr = "UNKNOWN";
+	auto resultStr = "UNKNOWN";
 	switch (result)
 	{
 	case VK_ERROR_OUT_OF_HOST_MEMORY:
@@ -91,7 +94,7 @@ std::vector<char> Renderer::ReadFile(const std::string& path)
 		throw std::runtime_error("Cannot open shader: " + path);
 	}
 
-	size_t size = f.tellg();
+	const size_t size = f.tellg();
 	std::vector<char> buf(size);
 	f.seekg(0);
 	f.read(buf.data(), size);
@@ -173,8 +176,7 @@ Renderer::~Renderer()
 
 	if (VALIDATION)
 	{
-		auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT)
-		vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+		auto fn = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 
 		if (fn)
 		{
@@ -188,7 +190,7 @@ Renderer::~Renderer()
 
 void Renderer::FramebufferResizeCallback(GLFWwindow* window, int, int)
 {
-	auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+	const auto renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	renderer->framebufferResized = true;
 }
 
@@ -203,9 +205,9 @@ void Renderer::CreateInstance()
 		vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
 
 		bool found = false;
-		for (auto& l : layers)
+		for (const auto& layer : layers)
 		{
-			if (strcmp(l.layerName, VALIDATION_LAYER) == 0)
+			if (strcmp(layer.layerName, VALIDATION_LAYER) == 0)
 			{
 				found = true; break;
 			}
@@ -234,7 +236,7 @@ void Renderer::CreateInstance()
 	VkInstanceCreateInfo ci{};
 	ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	ci.pApplicationInfo = &ai;
-	ci.enabledExtensionCount = (uint32_t)exts.size();
+	ci.enabledExtensionCount = static_cast<uint32_t>(exts.size());
 	ci.ppEnabledExtensionNames = exts.data();
 
 	if (VALIDATION)
@@ -260,8 +262,7 @@ void Renderer::CreateDebugMessenger()
 	ci.pfnUserCallback = DebugCallback;
 
 	// This function isn't statically linked, so we should load it at runtime
-	auto fn = (PFN_vkCreateDebugUtilsMessengerEXT)
-	vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	auto fn = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
 
 	if (!fn || fn(instance, &ci, nullptr, &debugMessenger) != VK_SUCCESS)
 	{
@@ -281,7 +282,7 @@ void Renderer::PickPhysicalDevice()
 	std::vector<VkPhysicalDevice> devices(count);
 	vkEnumeratePhysicalDevices(instance, &count, devices.data());
 
-	for (auto pd : devices)
+	for (const auto pd : devices)
 	{
 		uint32_t qc = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(pd, &qc, nullptr);
@@ -318,12 +319,12 @@ void Renderer::PickPhysicalDevice()
 
 void Renderer::CreateLogicalDevice()
 {
-	float priority = 1.0f;
+	const float priority = 1.0f;
 	std::vector<VkDeviceQueueCreateInfo> qcis;
-	for (uint32_t fam : {graphicsFamily, presentFamily})
+	for (const uint32_t fam : {graphicsFamily, presentFamily})
 	{
 		bool already = false;
-		for (auto& q : qcis) if (q.queueFamilyIndex == fam)
+		for (const auto& q : qcis) if (q.queueFamilyIndex == fam)
 		{
 			already = true;
 			break;
@@ -347,11 +348,11 @@ void Renderer::CreateLogicalDevice()
 	features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
 	features11.shaderDrawParameters = VK_TRUE;
 
-	const char* devExt = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	const auto devExt = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 	VkDeviceCreateInfo ci{};
 	ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	ci.pNext = &features11;
-	ci.queueCreateInfoCount = (uint32_t)qcis.size();
+	ci.queueCreateInfoCount = static_cast<uint32_t>(qcis.size());
 	ci.pQueueCreateInfos = qcis.data();
 	ci.enabledExtensionCount = 1;
 	ci.ppEnabledExtensionNames = &devExt;
@@ -387,7 +388,7 @@ void Renderer::CreateSyncObjects()
 	renderFinishedSemaphores.resize(swapchainImages.size());
 	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
-	VkSemaphoreCreateInfo si{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	constexpr VkSemaphoreCreateInfo si{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	VkFenceCreateInfo fi{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 	fi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
@@ -403,7 +404,7 @@ void Renderer::CreateSyncObjects()
 	}
 }
 
-uint32_t Renderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const
+uint32_t Renderer::FindMemoryType(const uint32_t typeFilter, const VkMemoryPropertyFlags props) const
 {
 	VkPhysicalDeviceMemoryProperties memProps;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
@@ -440,7 +441,6 @@ void Renderer::CreateSpriteBuffers()
 {
 	// One host-visible, persistently-mapped buffer per frame in flight.
 	// HOST_COHERENT means writes are visible to the GPU without an explicit flush.
-	const VkDeviceSize bufSize = sizeof(SpriteList);
 
 	spriteBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	spriteBufferMemory.resize(MAX_FRAMES_IN_FLIGHT);
@@ -448,6 +448,7 @@ void Renderer::CreateSpriteBuffers()
 
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 	{
+		constexpr VkDeviceSize bufSize = sizeof(SpriteList);
 		VkBufferCreateInfo bci{};
 		bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bci.size = bufSize;
@@ -474,7 +475,7 @@ void Renderer::CreateSpriteBuffers()
 
 void Renderer::CreateSpriteDescriptorPool()
 {
-	VkDescriptorPoolSize poolSize{};
+	VkDescriptorPoolSize poolSize;
 	poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
@@ -564,8 +565,7 @@ void Renderer::CreateImageViews()
 		ci.subresourceRange.levelCount = 1;
 		ci.subresourceRange.layerCount = 1;
 
-		VkResult imageViewResult = vkCreateImageView(device, &ci, nullptr, &swapchainImageViews[i]);
-		VkCheck(imageViewResult, "vkCreateImageView");
+		VkCheck(vkCreateImageView(device, &ci, nullptr, &swapchainImageViews[i]), "vkCreateImageView");
 	}
 }
 
@@ -606,8 +606,7 @@ void Renderer::CreateRenderPass()
 	ci.dependencyCount = 1;
 	ci.pDependencies = &dep;
 
-	VkResult renderPassResult = vkCreateRenderPass(device, &ci, nullptr, &renderPass);
-	VkCheck(renderPassResult, "vkCreateRenderPass");
+	VkCheck(vkCreateRenderPass(device, &ci, nullptr, &renderPass), "vkCreateRenderPass");
 }
 
 void Renderer::CreateGraphicsPipeline()
@@ -635,8 +634,7 @@ void Renderer::CreateGraphicsPipeline()
 	layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layoutCI.setLayoutCount = 1;
 	layoutCI.pSetLayouts = &spriteSetLayout;
-	VkResult pipelineLayoutResult = vkCreatePipelineLayout(device, &layoutCI, nullptr, &pipelineLayout);
-	VkCheck(pipelineLayoutResult, "vkCreatePipelineLayout");
+	VkCheck(vkCreatePipelineLayout(device, &layoutCI, nullptr, &pipelineLayout), "vkCreatePipelineLayout");
 
 	VkPipelineVertexInputStateCreateInfo vi{};
 	vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -645,7 +643,7 @@ void Renderer::CreateGraphicsPipeline()
 	ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-	VkViewport viewport{ 0, 0, (float)swapchainExtent.width, (float)swapchainExtent.height, 0, 1 };
+	VkViewport viewport{ 0, 0, static_cast<float>(swapchainExtent.width), static_cast<float>(swapchainExtent.height), 0, 1 };
 	VkRect2D   scissor{ {0, 0}, swapchainExtent };
 	VkPipelineViewportStateCreateInfo vps{};
 	vps.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -684,8 +682,7 @@ void Renderer::CreateGraphicsPipeline()
 	pci.layout = pipelineLayout;
 	pci.renderPass = renderPass;
 
-	VkResult graphicsPipelinesResult = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pci, nullptr, &graphicsPipeline);
-	VkCheck(graphicsPipelinesResult, "vkCreateGraphicsPipelines");
+	VkCheck(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pci, nullptr, &graphicsPipeline), "vkCreateGraphicsPipelines");
 	vkDestroyShaderModule(device, vMod, nullptr);
 	vkDestroyShaderModule(device, fMod, nullptr);
 }
@@ -703,8 +700,7 @@ void Renderer::CreateFramebuffers()
 		ci.width = swapchainExtent.width;
 		ci.height = swapchainExtent.height;
 		ci.layers = 1;
-		VkResult frameBufferResult = vkCreateFramebuffer(device, &ci, nullptr, &framebuffers[i]);
-		VkCheck(frameBufferResult, "vkCreateFramebuffer");
+		VkCheck(vkCreateFramebuffer(device, &ci, nullptr, &framebuffers[i]), "vkCreateFramebuffer");
 	}
 }
 
@@ -715,19 +711,18 @@ void Renderer::CreateCommandBuffers()
 	ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	ai.commandPool = commandPool;
 	ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	ai.commandBufferCount = (uint32_t)commandBuffers.size();
-	VkResult commandBuffersResult = vkAllocateCommandBuffers(device, &ai, commandBuffers.data());
-	VkCheck(commandBuffersResult, "vkAllocateCommandBuffers");
+	ai.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+	VkCheck(vkAllocateCommandBuffers(device, &ai, commandBuffers.data()), "vkAllocateCommandBuffers");
 }
 
 void Renderer::CleanupSwapchain()
 {
-	for (VkFramebuffer frameBuffer : framebuffers)
+	for (const VkFramebuffer frameBuffer : framebuffers)
 	{
 		vkDestroyFramebuffer(device, frameBuffer, nullptr);
 	}
 
-	for (VkImageView imageView : swapchainImageViews)
+	for (const VkImageView imageView : swapchainImageViews)
 	{
 		vkDestroyImageView(device, imageView, nullptr);
 	}
@@ -761,13 +756,13 @@ void Renderer::RecreateSwapchain()
 
 	// renderFinishedSemaphores are sized per swapchain image. If the image count changed
 	// after recreation, destroy the old ones and create new ones.
-	for (VkSemaphore semaphore : renderFinishedSemaphores)
+	for (const VkSemaphore semaphore : renderFinishedSemaphores)
 	{
 		vkDestroySemaphore(device, semaphore, nullptr);
 	}
 
 	renderFinishedSemaphores.clear();
-	VkSemaphoreCreateInfo si{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	constexpr VkSemaphoreCreateInfo si{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	renderFinishedSemaphores.resize(swapchainImages.size());
 	for (size_t i = 0; i < swapchainImages.size(); i++)
 	{
@@ -784,11 +779,11 @@ void Renderer::RecreateSwapchain()
 
 void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 {
-	VkFence fence = inFlightFences[currentFrame];
+	const VkFence fence = inFlightFences[currentFrame];
 	vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex = 0;
-	VkResult nextImageKHR = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+	const VkResult nextImageKHR = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
 	if (nextImageKHR == VK_ERROR_OUT_OF_DATE_KHR)
 	{
@@ -802,13 +797,13 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 	// HOST_COHERENT memory requires no explicit flush.
 	memcpy(spriteBufferMapped[currentFrame], &scene, sizeof(SpriteList));
 
-	VkCommandBuffer cmd = commandBuffers[currentFrame];
+	const VkCommandBuffer cmd = commandBuffers[currentFrame];
 	vkResetCommandBuffer(cmd, 0);
 
-	VkCommandBufferBeginInfo bi{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	const VkCommandBufferBeginInfo bi{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	vkBeginCommandBuffer(cmd, &bi);
 
-	VkClearValue clear{ .color = {0.05f, 0.05f, 0.08f, 1.0f} };
+	constexpr VkClearValue clear{ .color = {0.05f, 0.05f, 0.08f, 1.0f} };
 	VkRenderPassBeginInfo rpbi{};
 	rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	rpbi.renderPass = renderPass;
@@ -842,15 +837,15 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 
 	// acquire semaphore: per frame-in-flight, safe because the fence above ensures
 	// this frame's previous acquire has already been waited on by submit.
-	VkSemaphore waitSemaphore = imageAvailableSemaphores[currentFrame];
+	const VkSemaphore waitSemaphore = imageAvailableSemaphores[currentFrame];
 
 	// renderFinished semaphore: MUST be per swapchain image, indexed by imageIndex.
 	// vkQueuePresentKHR waits on this semaphore but provides no way to signal when it's done.
 	// The only guarantee of reuse safety is that vkAcquireNextImageKHR
 	// returning this imageIndex means the previous present for that image is complete.
-	VkSemaphore signalSemaphore = renderFinishedSemaphores[imageIndex];
+	const VkSemaphore signalSemaphore = renderFinishedSemaphores[imageIndex];
 
-	VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo submit{};
 	submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit.waitSemaphoreCount = 1;
@@ -869,7 +864,7 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 	present.swapchainCount = 1;
 	present.pSwapchains = &swapchain;
 	present.pImageIndices = &imageIndex;
-	VkResult queuePresentKHRResult = vkQueuePresentKHR(presentQueue, &present);
+	const VkResult queuePresentKHRResult = vkQueuePresentKHR(presentQueue, &present);
 
 	if (queuePresentKHRResult == VK_ERROR_OUT_OF_DATE_KHR || queuePresentKHRResult == VK_SUBOPTIMAL_KHR || framebufferResized)
 	{
@@ -883,7 +878,7 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 void Renderer::InitImGui()
 {
 	// ImGui needs its own descriptor pool
-	VkDescriptorPoolSize poolSizes[] =
+	const VkDescriptorPoolSize poolSizes[] =
 	{
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 16 },
 	};
@@ -894,8 +889,7 @@ void Renderer::InitImGui()
 	poolCI.maxSets = 16;
 	poolCI.poolSizeCount = 1;
 	poolCI.pPoolSizes = poolSizes;
-	VkResult descriptorPoolResult = vkCreateDescriptorPool(device, &poolCI, nullptr, &imguiDescriptorPool);
-	VkCheck(descriptorPoolResult, "vkCreateDescriptorPool imgui");
+	VkCheck(vkCreateDescriptorPool(device, &poolCI, nullptr, &imguiDescriptorPool), "vkCreateDescriptorPool imgui");
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -926,7 +920,7 @@ void Renderer::ShutdownImGui() const
 	vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
 }
 
-void Renderer::DrawImGui(VkCommandBuffer cmd, const EditorStats& stats)
+void Renderer::DrawImGui(const VkCommandBuffer cmd, const EditorStats& stats)
 {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();

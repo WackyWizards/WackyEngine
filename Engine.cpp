@@ -72,7 +72,7 @@ void Engine::Run(const std::string& gameDllPath)
 
 	try
 	{
-		GameDLL dll(gameDllPath);
+		const GameDLL dll(gameDllPath);
 		Renderer renderer(window);
 
 		/*
@@ -82,7 +82,7 @@ void Engine::Run(const std::string& gameDllPath)
 		* g_engine, which is in the same address space as the function pointers.
 		*/
 		EngineBindings bindings{};
-		bindings.getdelta = []() -> float
+		bindings.getDelta = []() -> float
 		{
 			return s_delta;
 		};
@@ -92,14 +92,20 @@ void Engine::Run(const std::string& gameDllPath)
 		};
 		bindings.keyHeld = [](Key k) -> bool
 		{
-			int i = static_cast<int>(k);
-			return (i >= 0 && i < 512) ? s_keys[i] : false;
+			const int i = static_cast<int>(k);
+			return i >= 0 && i < 512 ? s_keys[i] : false;
 		};
 		bindings.keyPressed = [](Key k) -> bool
 		{
-			int i = static_cast<int>(k);
-			if (i < 0 || i >= 512) return false;
-			if (s_pressedLatch[i]) { s_pressedLatch[i] = false; return true; }
+			const int i = static_cast<int>(k);
+			if (i < 0 || i >= 512)
+			{	return false;}
+			if (s_pressedLatch[i])
+			{
+				s_pressedLatch[i] = false;
+				return true;
+			}
+			
 			return false;
 		};
 		bindings.pushSprite = [](Sprite s)
@@ -109,28 +115,28 @@ void Engine::Run(const std::string& gameDllPath)
 
 		dll.game->Init(bindings);
 
-		std::atomic<bool> running = true;
+		std::atomic running = true;
 
 		// Render thread
-		std::thread renderThread([&]()
+		std::thread renderThread([&]
+		{
+			while (running)
 			{
-				while (running)
+				// Swap in the latest scene and stats under lock, then render without holding it
+				SpriteList  scene;
+				EditorStats stats;
 				{
-					// Swap in the latest scene and stats under lock, then render without holding it
-					SpriteList  scene;
-					EditorStats stats;
-					{
-						std::lock_guard<std::mutex> lock(s_sceneMutex);
-						scene = s_pending;
-						stats = s_editorStats;
-					}
-					renderer.DrawFrame(scene, stats);
+					std::scoped_lock lock(s_sceneMutex);
+					scene = s_pending;
+					stats = s_editorStats;
 				}
-				renderer.WaitIdle();
-			});
+				renderer.DrawFrame(scene, stats);
+			}
+			renderer.WaitIdle();
+		});
 
 		// Main thread; event pump + game update
-		auto start = std::chrono::steady_clock::now();
+		const auto start = std::chrono::steady_clock::now();
 		auto prev = start;
 		bool prevKeys[512]{};
 
@@ -149,7 +155,7 @@ void Engine::Run(const std::string& gameDllPath)
 
 			for (int k = 0; k < 512; k++)
 			{
-				bool held = (glfwGetKey(window, k) == GLFW_PRESS);
+				const bool held = glfwGetKey(window, k) == GLFW_PRESS;
 
 				if (held && !prevKeys[k])
 				{
@@ -166,12 +172,12 @@ void Engine::Run(const std::string& gameDllPath)
 
 			// Build editor stats, smooth FPS with a simple exponential average
 			static float smoothFps = 0.f;
-			float rawFps = (s_delta > 0.f) ? (1.f / s_delta) : 0.f;
+			const float rawFps = s_delta > 0.f ? 1.f / s_delta : 0.f;
 			smoothFps = smoothFps * 0.9f + rawFps * 0.1f;
 
 			// Publish scene + stats to render thread
 			{
-				std::lock_guard<std::mutex> lock(s_sceneMutex);
+				std::scoped_lock lock(s_sceneMutex);
 				s_render = s_pending;
 				s_editorStats = { s_delta, smoothFps };
 			}

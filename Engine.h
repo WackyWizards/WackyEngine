@@ -4,5 +4,5 @@
 class Engine
 {
 public:
-    void Run(const std::string& gameDllPath);
+    static void Run(const std::string& gameDllPath);
 };
