@@ -4,6 +4,7 @@
 #include "renderer\Renderer.h"
 #include <iostream>
 #include <mutex>
+#include <atomic>
 #include <windows.h>
 
 struct GameDLL
@@ -58,6 +59,9 @@ namespace
 	SpriteList s_render{};
 	EditorStats s_editorStats{};
 	std::mutex s_sceneMutex;
+
+	// Set by the render thread (via EngineUI callback), consumed by the main thread.
+	std::atomic s_reloadRequested = false;
 }
 
 void Engine::Run(const std::string& gameDllPath)
@@ -72,8 +76,11 @@ void Engine::Run(const std::string& gameDllPath)
 
 	try
 	{
-		const GameDLL dll(gameDllPath);
-		Renderer renderer(window);
+		auto dll = std::make_unique<GameDLL>(gameDllPath);
+		Renderer renderer(window, []
+		{
+			s_reloadRequested = true;
+		});
 
 		/*
 		* Build bindings - lambdas capture engine-side state.
@@ -81,59 +88,61 @@ void Engine::Run(const std::string& gameDllPath)
 		* gets populated. The DLL's Time/Input/Scene classes then read from
 		* g_engine, which is in the same address space as the function pointers.
 		*/
-		EngineBindings bindings{};
+		EngineBindings bindings;
 		bindings.getDelta = []() -> float
-		{
-			return s_delta;
-		};
-		bindings.getElapsed = []() -> float
-		{
-			return s_elapsed;
-		};
-		bindings.keyHeld = [](Key k) -> bool
-		{
-			const int i = static_cast<int>(k);
-			return i >= 0 && i < 512 ? s_keys[i] : false;
-		};
-		bindings.keyPressed = [](Key k) -> bool
-		{
-			const int i = static_cast<int>(k);
-			if (i < 0 || i >= 512)
-			{	return false;}
-			if (s_pressedLatch[i])
 			{
-				s_pressedLatch[i] = false;
-				return true;
-			}
-			
-			return false;
-		};
-		bindings.pushSprite = [](Sprite s)
-		{
-			s_pending.Push(s); // called from main thread during Update(), no lock needed
-		};
+				return s_delta;
+			};
+		bindings.getElapsed = []() -> float
+			{
+				return s_elapsed;
+			};
+		bindings.keyHeld = [](Key k) -> bool
+			{
+				const int i = static_cast<int>(k);
+				return i >= 0 && i < 512 ? s_keys[i] : false;
+			};
+		bindings.keyPressed = [](Key k) -> bool
+			{
+				const int i = static_cast<int>(k);
+				if (i < 0 || i >= 512)
+				{
+					return false;
+				}
+				if (s_pressedLatch[i])
+				{
+					s_pressedLatch[i] = false;
+					return true;
+				}
 
-		dll.game->Init(bindings);
+				return false;
+			};
+		bindings.pushSprite = [](Sprite s)
+			{
+				s_pending.Push(s); // called from main thread during Update(), no lock needed
+			};
+
+		dll->game->Init(bindings);
 
 		std::atomic running = true;
 
 		// Render thread
 		std::thread renderThread([&]
-		{
-			while (running)
 			{
-				// Swap in the latest scene and stats under lock, then render without holding it
-				SpriteList  scene;
-				EditorStats stats;
+				while (running)
 				{
-					std::scoped_lock lock(s_sceneMutex);
-					scene = s_pending;
-					stats = s_editorStats;
+					// Swap in the latest scene and stats under lock, then render without holding it
+					SpriteList  scene;
+					EditorStats stats;
+					{
+						std::scoped_lock lock(s_sceneMutex);
+						scene = s_pending;
+						stats = s_editorStats;
+					}
+					renderer.DrawFrame(scene, stats);
 				}
-				renderer.DrawFrame(scene, stats);
-			}
-			renderer.WaitIdle();
-		});
+				renderer.WaitIdle();
+			});
 
 		// Main thread; event pump + game update
 		const auto start = std::chrono::steady_clock::now();
@@ -143,6 +152,14 @@ void Engine::Run(const std::string& gameDllPath)
 		while (!glfwWindowShouldClose(window))
 		{
 			glfwPollEvents();
+
+			// Reload requested by the UI - runs between frames so Update() is never mid-flight.
+			if (s_reloadRequested.exchange(false))
+			{
+				dll->game->Shutdown();
+				dll = std::make_unique<GameDLL>(gameDllPath);
+				dll->game->Init(bindings);
+			}
 
 			auto now = std::chrono::steady_clock::now();
 			s_delta = std::chrono::duration<float>(now - prev).count();
@@ -168,7 +185,7 @@ void Engine::Run(const std::string& gameDllPath)
 
 			// Build the new scene, pushSprite writes into s_pending
 			s_pending.Clear();
-			dll.game->Update();
+			dll->game->Update();
 
 			// Build editor stats, smooth FPS with a simple exponential average
 			static float smoothFps = 0.f;
@@ -179,11 +196,11 @@ void Engine::Run(const std::string& gameDllPath)
 			{
 				std::scoped_lock lock(s_sceneMutex);
 				s_render = s_pending;
-				s_editorStats = { s_delta, smoothFps };
+				s_editorStats = {.deltaTime = s_delta, .fps = smoothFps };
 			}
 		}
 
-		dll.game->Shutdown();
+		dll->game->Shutdown();
 		running = false;
 		renderThread.join();
 	}

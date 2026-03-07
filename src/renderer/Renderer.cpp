@@ -1,11 +1,7 @@
-﻿#define GLFW_INCLUDE_VULKAN
-#include "renderer\Renderer.h"
+﻿#include "renderer\Renderer.h"
 #include <iostream>
 #include <fstream>
 #include <cstring>
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
 
 #ifdef NDEBUG
 static constexpr bool VALIDATION = false;
@@ -112,7 +108,7 @@ VkShaderModule Renderer::CreateShaderModule(const std::vector<char>& code) const
 	return mod;
 }
 
-Renderer::Renderer(GLFWwindow* w) : window(w)
+Renderer::Renderer(GLFWwindow* w, std::function<void()> onReload) : window(w)
 {
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
@@ -138,13 +134,16 @@ Renderer::Renderer(GLFWwindow* w) : window(w)
 	CreateCommandPool();
 	CreateCommandBuffers();
 	CreateSyncObjects();
-	InitImGui();
+
+	engineUI = std::make_unique<EngineUI>(window, instance, physicalDevice, device,
+		graphicsFamily, graphicsQueue, renderPass,
+		MAX_FRAMES_IN_FLIGHT, std::move(onReload));
 }
 
 Renderer::~Renderer()
 {
 	vkDeviceWaitIdle(device);
-	ShutdownImGui();
+	// engineUI destroyed first (before Vulkan handles) via unique_ptr destructor order
 
 	CleanupSwapchain();
 
@@ -347,6 +346,10 @@ void Renderer::CreateLogicalDevice()
 	VkPhysicalDeviceVulkan11Features features11{};
 	features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
 	features11.shaderDrawParameters = VK_TRUE;
+	
+	// Required for VK_POLYGON_MODE_LINE (wireframe)
+	VkPhysicalDeviceFeatures features{};
+	features.fillModeNonSolid = VK_TRUE;
 
 	const auto devExt = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 	VkDeviceCreateInfo ci{};
@@ -356,6 +359,7 @@ void Renderer::CreateLogicalDevice()
 	ci.pQueueCreateInfos = qcis.data();
 	ci.enabledExtensionCount = 1;
 	ci.ppEnabledExtensionNames = &devExt;
+	ci.pEnabledFeatures = &features;
 
 	if (VALIDATION)
 	{
@@ -652,7 +656,7 @@ void Renderer::CreateGraphicsPipeline()
 
 	VkPipelineRasterizationStateCreateInfo rast{};
 	rast.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rast.polygonMode = VK_POLYGON_MODE_FILL;
+	rast.polygonMode = wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 	rast.cullMode = VK_CULL_MODE_NONE;
 	rast.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rast.lineWidth = 1.0f;
@@ -830,7 +834,7 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 		vkCmdDraw(cmd, scene.count * 6, 1, 0, 0); // 6 verts per quad (2 triangles)
 	}
 
-	DrawImGui(cmd, stats);
+	engineUI->Draw(cmd, stats);
 
 	vkCmdEndRenderPass(cmd);
 	vkEndCommandBuffer(cmd);
@@ -845,7 +849,7 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 	// returning this imageIndex means the previous present for that image is complete.
 	const VkSemaphore signalSemaphore = renderFinishedSemaphores[imageIndex];
 
-	const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	constexpr VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	VkSubmitInfo submit{};
 	submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit.waitSemaphoreCount = 1;
@@ -871,69 +875,14 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 		framebufferResized = false;
 		RecreateSwapchain();
 	}
+	else if (engineUI->IsWireframe() != wireframe)
+	{
+		// Wireframe was toggled - rebuild the pipeline with the new polygon mode.
+		wireframe = engineUI->IsWireframe();
+		RecreateSwapchain();
+	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void Renderer::InitImGui()
-{
-	// ImGui needs its own descriptor pool
-	const VkDescriptorPoolSize poolSizes[] =
-	{
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 16 },
-	};
-
-	VkDescriptorPoolCreateInfo poolCI{};
-	poolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolCI.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	poolCI.maxSets = 16;
-	poolCI.poolSizeCount = 1;
-	poolCI.pPoolSizes = poolSizes;
-	VkCheck(vkCreateDescriptorPool(device, &poolCI, nullptr, &imguiDescriptorPool), "vkCreateDescriptorPool imgui");
-
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-
-	ImGui_ImplGlfw_InitForVulkan(window, true);
-
-	ImGui_ImplVulkan_InitInfo initInfo{};
-	initInfo.ApiVersion = VK_API_VERSION_1_3;
-	initInfo.Instance = instance;
-	initInfo.PhysicalDevice = physicalDevice;
-	initInfo.Device = device;
-	initInfo.QueueFamily = graphicsFamily;
-	initInfo.Queue = graphicsQueue;
-	initInfo.DescriptorPool = imguiDescriptorPool;
-	initInfo.MinImageCount = MAX_FRAMES_IN_FLIGHT;
-	initInfo.ImageCount = MAX_FRAMES_IN_FLIGHT;
-	initInfo.PipelineInfoMain.RenderPass = renderPass;
-	initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-	ImGui_ImplVulkan_Init(&initInfo);
-}
-
-void Renderer::ShutdownImGui() const
-{
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-	vkDestroyDescriptorPool(device, imguiDescriptorPool, nullptr);
-}
-
-void Renderer::DrawImGui(const VkCommandBuffer cmd, const EditorStats& stats)
-{
-	ImGui_ImplVulkan_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
-	ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(200, 70), ImGuiCond_Always);
-	ImGui::SetNextWindowBgAlpha(0.6f);
-	ImGui::Begin("Engine Stats", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
-	ImGui::Text("FPS   : %.1f", stats.fps);
-	ImGui::Text("Delta : %.2f ms", stats.deltaTime * 1000.f);
-	ImGui::End();
-	ImGui::Render();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 }
 
 void Renderer::WaitIdle() const

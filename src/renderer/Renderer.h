@@ -6,15 +6,9 @@
 #include <vector>
 #include <string>
 #include "core\Game.h"
-#include "imgui_impl_vulkan.h"
-
-struct EditorStats
-{
-	/** Seconds since last frame */
-	float deltaTime = 0;
-	/** 1.f / deltaTime, smoothed */
-	float fps = 0;
-};
+#include "EngineUI.h"
+#include <memory>
+#include <functional>
 
 /**
  * Renderer owns the entire Vulkan context.
@@ -22,7 +16,7 @@ struct EditorStats
 class Renderer
 {
 public:
-	Renderer(GLFWwindow* window);
+	Renderer(GLFWwindow* window, std::function<void()> onReload);
 	~Renderer();
 
 	void DrawFrame(const SpriteList& scene, const EditorStats& stats);
@@ -112,12 +106,11 @@ private:
 	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
 	///@}
 
-	/** @name ImGui */
+	/** @name Editor UI */
 	///@{
-	VkDescriptorPool imguiDescriptorPool = VK_NULL_HANDLE;
-	void InitImGui();
-	void ShutdownImGui() const;
-	static void DrawImGui(VkCommandBuffer cmd, const EditorStats& stats);
+	/** Tracks the last-committed wireframe state so Renderer knows when to rebuild the pipeline. */
+	bool wireframe = false;
+	std::unique_ptr<EngineUI> engineUI;
 	///@}
 
 	/** @name Setup */
@@ -149,7 +142,7 @@ private:
 	///@{
 	/* Load a compiled shader file (.spv from glslc, dxc, or slangc). */
 	static std::vector<char> ReadFile(const std::string& path);
-	
+
 	[[nodiscard]]
 	VkShaderModule CreateShaderModule(const std::vector<char>& code) const;
 
