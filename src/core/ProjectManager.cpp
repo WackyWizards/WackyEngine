@@ -57,8 +57,14 @@ static std::string JsonStr(const std::string& key, const std::string& value, boo
 	escaped.reserve(value.size());
 	for (char c : value)
 	{
-		if (c == '\\') escaped += "\\\\";
-		else           escaped += c;
+		if (c == '\\')
+		{
+			escaped += "\\\\";
+		}
+		else
+		{
+			escaped += c;
+		}
 	}
 	return "  \"" + key + "\": \"" + escaped + "\"" + (last ? "" : ",") + "\n";
 }
@@ -67,13 +73,22 @@ static std::string ReadJsonValue(const std::string& json, const std::string& key
 {
 	const std::string search = "\"" + key + "\"";
 	size_t keyPos = json.find(search);
-	if (keyPos == std::string::npos) return {};
+	if (keyPos == std::string::npos)
+	{
+		return {};
+	}
 
 	size_t colon = json.find(':', keyPos);
-	if (colon == std::string::npos) return {};
+	if (colon == std::string::npos)
+	{
+		return {};
+	}
 
 	size_t open = json.find('"', colon);
-	if (open == std::string::npos) return {};
+	if (open == std::string::npos)
+	{
+		return {};
+	}
 
 	// Collect characters, handling \" and \\ escapes
 	std::string result;
@@ -82,9 +97,18 @@ static std::string ReadJsonValue(const std::string& json, const std::string& key
 		if (json[i] == '\\' && i + 1 < json.size())
 		{
 			++i;
-			if (json[i] == '"')  result += '"';
-			else if (json[i] == '\\') result += '\\';
-			else                      result += json[i];
+			if (json[i] == '"')
+			{
+				result += '"';
+			}
+			else if (json[i] == '\\')
+			{
+				result += '\\';
+			}
+			else
+			{
+				result += json[i];
+			}
 		}
 		else if (json[i] == '"')
 		{
@@ -95,6 +119,7 @@ static std::string ReadJsonValue(const std::string& json, const std::string& key
 			result += json[i];
 		}
 	}
+
 	return result;
 }
 
@@ -106,7 +131,6 @@ namespace ProjectManager
 		{
 			fs::path dir = fs::path(parentDir) / name;
 			fs::path buildDir = dir / "build";
-
 			fs::create_directories(dir / "src");
 
 			// Game.cpp stub
@@ -115,12 +139,16 @@ namespace ProjectManager
 			{
 				stub.replace(p, 6, name);
 			}
+
 			std::ofstream(dir / "src" / "Game.cpp") << stub;
 
 			// CMakeLists.txt
 			std::string cmake = STUB_CMAKE;
 			for (size_t p; (p = cmake.find("%NAME%")) != std::string::npos;)
+			{
 				cmake.replace(p, 6, name);
+			}
+
 			std::ofstream(dir / "CMakeLists.txt") << cmake;
 
 			// cmake configure (runs once to generate build system)
