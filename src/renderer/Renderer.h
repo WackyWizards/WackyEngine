@@ -16,7 +16,7 @@
 class Renderer
 {
 public:
-	Renderer(GLFWwindow* window, std::function<void()> onReload);
+	Renderer(GLFWwindow* window, std::function<void()> onReload, std::function<void()> onBuildAndReload, std::function<void(const std::string&, const std::string&)> onNewProject, std::function<void(const std::string&)> onLoadProject);
 	~Renderer();
 
 	void DrawFrame(const SpriteList& scene, const EditorStats& stats);
@@ -111,6 +111,11 @@ private:
 	/** Tracks the last-committed wireframe state so Renderer knows when to rebuild the pipeline. */
 	bool wireframe = false;
 	std::unique_ptr<EngineUI> engineUI;
+
+	std::function<void()> onReload;
+	std::function<void()> onBuildAndReload;
+	std::function<void(const std::string&, const std::string&)> onNewProject;
+	std::function<void(const std::string&)> onLoadProject;
 	///@}
 
 	/** @name Setup */
@@ -135,22 +140,22 @@ private:
 	/* Tears down swapchain resources in reverse order, ready for recreation. */
 	void CleanupSwapchain();
 	/* Tears down and rebuilds everything swapchain-dependent. */
-	void RecreateSwapchain();
+	bool RecreateSwapchain();
 	///@}
 
 	/** @name Helpers */
 	///@{
-	/* Load a compiled shader file (.spv from glslc, dxc, or slangc). */
+	/** Load a compiled shader file (.spv from glslc, dxc, or slangc). */
 	static std::vector<char> ReadFile(const std::string& path);
 
 	[[nodiscard]]
 	VkShaderModule CreateShaderModule(const std::vector<char>& code) const;
 
-	/* Throws a runtime_error with the Vulkan result code name included. */
+	/** Throws a runtime_error with the Vulkan result code name included. */
 	static void VkCheck(VkResult result, const char* msg);
-	/* Validation layer callback - prints to cout so errors appear in VS output. */
+	/** Validation layer callback - prints to cout so errors appear in VS output. */
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* data, void* userData);
 	///@}
-	/* GLFW calls this when the window is resized. Sets framebufferResized = true. */
+	/** GLFW calls this when the window is resized. Sets framebufferResized = true. */
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
 };

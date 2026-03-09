@@ -101,7 +101,7 @@ struct SpriteList
     }
 };
 
-/*
+/**
 * Engine API
 * static inline members are per-DLL, the engine exe and game DLL each get their own copy.
 * Binding in the engine would never be seen by the DLL.

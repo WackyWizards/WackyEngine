@@ -3,6 +3,16 @@
 #include <fstream>
 #include <cstring>
 
+extern std::ofstream g_log;
+static void RLog(const char* msg)
+{
+	if (g_log.is_open())
+	{
+		g_log << msg << "\n";
+		g_log.flush();
+	}
+}
+
 #ifdef NDEBUG
 static constexpr bool VALIDATION = false;
 #else
@@ -108,43 +118,77 @@ VkShaderModule Renderer::CreateShaderModule(const std::vector<char>& code) const
 	return mod;
 }
 
-Renderer::Renderer(GLFWwindow* w, std::function<void()> onReload) : window(w)
+Renderer::Renderer(GLFWwindow* w,
+	std::function<void()> onReload,
+	std::function<void()> onBuildAndReload,
+	std::function<void(const std::string&, const std::string&)> onNewProject,
+	std::function<void(const std::string&)> onLoadProject)
+	: window(w)
+	, onReload(std::move(onReload))
+	, onBuildAndReload(std::move(onBuildAndReload))
+	, onNewProject(std::move(onNewProject))
+	, onLoadProject(std::move(onLoadProject))
 {
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 
+	RLog("CreateInstance");
 	CreateInstance();
+	RLog("CreateDebugMessenger");
 	CreateDebugMessenger();
+	RLog("CreateSurface");
 	CreateSurface();
+	RLog("PickPhysicalDevice");
 	PickPhysicalDevice();
+	RLog("CreateLogicalDevice");
 	CreateLogicalDevice();
 
-	// SSBO resources are device-lifetime (not swapchain-lifetime).
-	// They must exist before CreateGraphicsPipeline, which references spriteSetLayout.
+	RLog("CreateSpriteSetLayout");
 	CreateSpriteSetLayout();
+	RLog("CreateSpriteBuffers");
 	CreateSpriteBuffers();
+	RLog("CreateSpriteDescriptorPool");
 	CreateSpriteDescriptorPool();
+	RLog("CreateSpriteDescriptorSets");
 	CreateSpriteDescriptorSets();
 
+	RLog("CreateSwapchain");
 	CreateSwapchain();
+	RLog("CreateImageViews");
 	CreateImageViews();
+	RLog("CreateRenderPass");
 	CreateRenderPass();
+	RLog("CreateGraphicsPipeline");
 	CreateGraphicsPipeline();
+	RLog("CreateFramebuffers");
 	CreateFramebuffers();
+	RLog("CreateCommandPool");
 	CreateCommandPool();
+	RLog("CreateCommandBuffers");
 	CreateCommandBuffers();
+	RLog("CreateSyncObjects");
 	CreateSyncObjects();
 
-	engineUI = std::make_unique<EngineUI>(window, instance, physicalDevice, device,
-		graphicsFamily, graphicsQueue, renderPass,
-		MAX_FRAMES_IN_FLIGHT, std::move(onReload));
+	RLog("CreateEngineUI");
+	engineUI = std::make_unique<EngineUI>(
+		window,
+		instance,
+		physicalDevice,
+		device,
+		graphicsFamily,
+		graphicsQueue, renderPass,
+		MAX_FRAMES_IN_FLIGHT,
+		this->onReload,
+		this->onBuildAndReload,
+		this->onNewProject,
+		this->onLoadProject
+	);
 }
 
 Renderer::~Renderer()
 {
 	vkDeviceWaitIdle(device);
-	// engineUI destroyed first (before Vulkan handles) via unique_ptr destructor order
-
+	engineUI.reset();
 	CleanupSwapchain();
 
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -741,16 +785,17 @@ void Renderer::CleanupSwapchain()
 	swapchainImages.clear();
 }
 
-void Renderer::RecreateSwapchain()
+bool Renderer::RecreateSwapchain()
 {
-	// Wait if minimized
 	int width = 0;
 	int height = 0;
 	glfwGetFramebufferSize(window, &width, &height);
-	while (width == 0 || height == 0)
+
+	// Window is minimized — skip recreation this frame.
+	// DrawFrame will retry next tick naturally without blocking.
+	if (width == 0 || height == 0)
 	{
-		glfwGetFramebufferSize(window, &width, &height);
-		glfwWaitEvents();
+		return false;
 	}
 
 	vkDeviceWaitIdle(device);
@@ -774,11 +819,13 @@ void Renderer::RecreateSwapchain()
 	}
 
 	CreateRenderPass();
+
 	// spriteSetLayout is device-lifetime and survives swapchain recreation;
 	// CreateGraphicsPipeline reuses it directly.
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandBuffers();
+	return true;
 }
 
 void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
@@ -789,8 +836,9 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 	uint32_t imageIndex = 0;
 	const VkResult nextImageKHR = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	if (nextImageKHR == VK_ERROR_OUT_OF_DATE_KHR)
+	if (nextImageKHR == VK_ERROR_OUT_OF_DATE_KHR || nextImageKHR == VK_SUBOPTIMAL_KHR)
 	{
+		RLog("DF:RecreateSwapchain (acquire)");
 		RecreateSwapchain(); return;
 	}
 
@@ -824,9 +872,9 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 		cmd,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
 		pipelineLayout,
-		0,                                          // first set
-		1, &spriteDescriptorSets[currentFrame],     // one set
-		0, nullptr                                  // no dynamic offsets
+		0,
+		1, &spriteDescriptorSets[currentFrame],
+		0, nullptr
 	);
 
 	if (scene.count > 0)
@@ -873,7 +921,12 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats)
 	if (queuePresentKHRResult == VK_ERROR_OUT_OF_DATE_KHR || queuePresentKHRResult == VK_SUBOPTIMAL_KHR || framebufferResized)
 	{
 		framebufferResized = false;
-		RecreateSwapchain();
+
+		// minimized, skip
+		if (!RecreateSwapchain())
+		{
+			return;
+		}
 	}
 	else if (engineUI->IsWireframe() != wireframe)
 	{

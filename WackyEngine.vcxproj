@@ -152,6 +152,7 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\core\Engine.cpp" />
+    <ClCompile Include="src\core\ProjectManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\EngineUI.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
@@ -165,6 +166,8 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
   <ItemGroup>
     <ClInclude Include="src\core\Engine.h" />
     <ClInclude Include="src\core\Game.h" />
+    <ClInclude Include="src\core\Project.h" />
+    <ClInclude Include="src\core\ProjectManager.h" />
     <ClInclude Include="src\renderer\EngineUI.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
   </ItemGroup>

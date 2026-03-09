@@ -1,13 +1,8 @@
 #include "core\Engine.h"
 
-namespace
-{
-    /** Path to the game dll to load */
-    auto gameDllPath = "SpaceShooter.dll";
-}
-
 int main()
 {
-    Engine::Run(gameDllPath);
+    // Load the engine.
+    Engine::Run("");
     return 0;
 }
