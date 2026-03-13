@@ -44,6 +44,9 @@ cmake-build-*/
 .DS_Store
 Thumbs.db
 
+# AI
+.github/copilot-instructions.md
+
 # Vendor binaries
 vendor/**/lib/
 vendor/**/bin/
