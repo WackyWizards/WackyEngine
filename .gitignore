@@ -39,6 +39,7 @@ cmake-build-*/
 
 # Logs
 *.log
+engine_log.txt
 
 # OS junk
 .DS_Store
