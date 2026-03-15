@@ -177,7 +177,10 @@ void RuntimeRenderer::CreateLogicalDevice()
 				break;
 			}
 		}
-		if (already) { continue; }
+		if (already)
+		{
+			continue;
+		}
 
 		VkDeviceQueueCreateInfo qi{};
 		qi.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -287,8 +290,7 @@ void RuntimeRenderer::CreateSpriteBuffers()
 		VkMemoryAllocateInfo mai{};
 		mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		mai.allocationSize = memReq.size;
-		mai.memoryTypeIndex = FindMemoryType(memReq.memoryTypeBits,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		mai.memoryTypeIndex = FindMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkCheck(vkAllocateMemory(device, &mai, nullptr, &spriteBufferMemory[i]), "vkAllocateMemory sprite");
 
 		vkBindBufferMemory(device, spriteBuffers[i], spriteBufferMemory[i], 0);

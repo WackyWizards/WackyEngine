@@ -1178,7 +1178,7 @@ void EngineUI::DrawViewportPanel(World& world)
 		}
 	}
 
-	/** Entities — two passes: unselected first, selected on top */
+	/** Entities - two passes: unselected first, selected on top */
 	{
 		const auto& entities = world.GetEntities();
 

@@ -12,6 +12,30 @@ enum class FieldType
 	String,
 };
 
+// Type -> FieldType
+template<typename T> struct TypeToFieldType;
+
+template<> struct TypeToFieldType<float>
+{
+	static constexpr FieldType value = FieldType::Float;
+};
+
+template<> struct TypeToFieldType<int>
+{
+	static constexpr FieldType value = FieldType::Int;
+};
+
+template<> struct TypeToFieldType<bool>
+{
+	static constexpr FieldType value = FieldType::Bool;
+};
+
+template<> struct TypeToFieldType<std::string>
+{
+	static constexpr FieldType value = FieldType::String;
+};
+// TODO: Add more specialisations
+
 using Getter = const void* (*)(const void*);
 using Setter = void (*)(void*, const void*);
 
@@ -96,24 +120,28 @@ public:
 
 /**
  * Macro to register a public field for reflection.
- * Usage: REFLECT_FIELD(ClassName, fieldName, FieldType::Float)
+ * Usage: REFLECT_FIELD(ClassName, fieldName)
  * Must be placed at namespace scope in a .cpp file.
  */
-#define REFLECT_FIELD(ClassName, FieldName, FieldEnum) \
-    REFLECT_FIELD_IMPL(ClassName, FieldName, FieldEnum, __COUNTER__)
+#define REFLECT_FIELD(ClassName, FieldName)                                     \
+    REFLECT_FIELD_IMPL(ClassName, FieldName, __COUNTER__)
 
-#define REFLECT_FIELD_IMPL(ClassName, FieldName, FieldEnum, Counter) \
-    static bool CONCAT(RegisterField_, ClassName, _, Counter)() \
-    { \
-        Field f; \
-        f.name = #FieldName; \
-        f.type = FieldEnum; \
-        f.offset = offsetof(ClassName, FieldName); \
-        f.size = sizeof(((ClassName*)nullptr)->FieldName); \
-        Reflection::RegisterField(#ClassName, f); \
-        return true; \
-    } \
-    static bool CONCAT(DummyVar_, ClassName, _, Counter) = \
+#define REFLECT_FIELD_IMPL(ClassName, FieldName, Counter)                       \
+    static bool CONCAT(RegisterField_, ClassName, _, Counter)()                 \
+    {                                                                           \
+        using _FT = std::remove_cv_t<decltype(ClassName::FieldName)>;           \
+        static_assert(                                                          \
+            requires { TypeToFieldType<_FT>::value; },                          \
+            "REFLECT_FIELD: unsupported field type");                           \
+        Field f;                                                                \
+        f.name   = #FieldName;                                                  \
+        f.type   = TypeToFieldType<_FT>::value;                                 \
+        f.offset = offsetof(ClassName, FieldName);                              \
+        f.size   = sizeof(ClassName::FieldName);                                \
+        Reflection::RegisterField(#ClassName, f);                               \
+        return true;                                                            \
+    }                                                                           \
+    static bool CONCAT(DummyVar_, ClassName, _, Counter) =                      \
         CONCAT(RegisterField_, ClassName, _, Counter)();
 
 #define CONCAT(a, b, c, d) CONCAT_IMPL(a, b, c, d)

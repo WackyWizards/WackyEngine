@@ -2,8 +2,8 @@
 #include <core/Game.h>
 #include <cmath>
 
-REFLECT_FIELD(SpinnerEntity, rotateSpeed, FieldType::Float)
-REFLECT_FIELD(SpinnerEntity, bobSpeed, FieldType::Float)
+REFLECT_FIELD(SpinnerEntity, rotateSpeed)
+REFLECT_FIELD(SpinnerEntity, bobSpeed)
 
 void SpinnerEntity::OnBeginPlay()
 {
