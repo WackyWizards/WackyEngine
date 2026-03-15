@@ -40,8 +40,8 @@ Avoid using one-liners.
 While they are neat, they are harder to expand upon.
 Use proper control flow.
 
-```cpp
 Correct:
+```cpp
 if (!e)
 {
     e = std::make_unique<Entity>();
