@@ -249,16 +249,16 @@ EngineUI::~EngineUI()
 std::vector<EntityTypeInfo> EngineUI::GetAllEntityTypes() const
 {
 	/**
-	 * Combine engine-built-in entities with game-specific entities from the DLL,
+	 * Combine engine built-in entities with game-specific entities from the DLL,
 	 * deduplicating by type name so engine types always take priority.
 	 *
 	 * Root cause of duplicates: engine core files (Object.cpp etc.) are compiled
 	 * into both the engine exe and the game DLL, giving each binary its own
-	 * EntityRegistry singleton. Built-in types like SpinnerEntity therefore
-	 * register in both registries and would appear twice without this guard.
+	 * EntityRegistry singleton. Built-in types therefore register in both registries and would appear twice without this guard.
 	 *
 	 * The proper fix is in CMakeLists.txt - engine source files should not be
 	 * compiled into the game DLL. This deduplication acts as a safety net.
+	 * This is inherently not needed, but the cost is pretty negligible.
 	 */
 	std::vector<EntityTypeInfo> types;
 	std::unordered_set<std::string> seen;
@@ -1649,7 +1649,7 @@ void EngineUI::Draw(const VkCommandBuffer cmd, const EditorStats& stats, World& 
 		ImGui::EndPopup();
 	}
 
-	 /** About modal */
+	/** About modal */
 	if (ui.showAbout)
 	{
 		ImGui::OpenPopup("About##popup");
