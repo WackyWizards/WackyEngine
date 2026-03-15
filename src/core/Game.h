@@ -115,9 +115,12 @@ struct SpriteList
 */
 struct EngineBindings
 {
-	float (*getDelta)() = nullptr;  ///< Timescale-scaled frame delta (0 when paused)
-	float (*getElapsed)() = nullptr;  ///< Real seconds since Play started
-	float (*getFixedDelta)() = nullptr;  ///< Fixed step size in seconds (e.g. 0.02)
+	/** Timescale-scaled frame delta (0 when paused) */
+	float (*getDelta)() = nullptr;
+	/** Real seconds since Play started */
+	float (*getElapsed)() = nullptr;
+	/** Fixed step size in seconds (e.g. 0.02) */
+	float (*getFixedDelta)() = nullptr;
 	bool (*keyHeld)(Key) = nullptr;
 	bool (*keyPressed)(Key) = nullptr;
 	void (*pushSprite)(Sprite) = nullptr;

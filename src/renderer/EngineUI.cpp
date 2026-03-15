@@ -197,13 +197,13 @@ EngineUI::EngineUI(
 	std::function<void(const std::string&, const std::string&)> onNewProject,
 	std::function<void(const std::string&)> onLoadProject,
 	std::function<std::vector<EntityTypeInfo>()> onGetEntityTypes
-) : window(window), device(device),
-onReload(std::move(onReload)),
-onBuildAndReload(std::move(onBuildAndReload)),
-onExport(std::move(onExport)),
-onNewProject(std::move(onNewProject)),
-onLoadProject(std::move(onLoadProject)),
-onGetEntityTypes(std::move(onGetEntityTypes))
+) : window{ window }, device{ device },
+onReload{ std::move(onReload) },
+onBuildAndReload{ std::move(onBuildAndReload) },
+onExport{ std::move(onExport) },
+onNewProject{ std::move(onNewProject) },
+onLoadProject{ std::move(onLoadProject) },
+onGetEntityTypes{ std::move(onGetEntityTypes) }
 {
 	constexpr VkDescriptorPoolSize poolSizes[] =
 	{
@@ -1331,7 +1331,7 @@ void EngineUI::DrawViewportPanel(World& world)
 		ui.vpPanning = false;
 	}
 
-	/** Select and drag (editor only) */
+	/** Select and drag */
 	const bool plainLeft = ImGui::IsMouseDown(ImGuiMouseButton_Left) && !io.KeyAlt;
 
 	if (vpHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !io.KeyAlt)
@@ -1648,11 +1648,6 @@ void EngineUI::Draw(const VkCommandBuffer cmd, const EditorStats& stats, World& 
 
 		ImGui::EndPopup();
 	}
-
-	/**
-	 * Open Project, Open World, and Save World As are handled by native OS dialogs
-	 * triggered directly from the menu items - no modal state is needed here.
-	 */
 
 	 /** About modal */
 	if (ui.showAbout)

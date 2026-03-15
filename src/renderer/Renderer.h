@@ -54,10 +54,10 @@ private:
 
 	std::unique_ptr<EngineUI> engineUI;
 
-	std::function<void()>                                        onReload;
-	std::function<void()>                                        onBuildAndReload;
-	std::function<void()>                                        onExport;
-	std::function<void(const std::string&, const std::string&)>  onNewProject;
-	std::function<void(const std::string&)>                      onLoadProject;
-	std::function<std::vector<EntityTypeInfo>()>                 onGetEntityTypes;
+	std::function<void()> onReload;
+	std::function<void()> onBuildAndReload;
+	std::function<void()> onExport;
+	std::function<void(const std::string&, const std::string&)> onNewProject;
+	std::function<void(const std::string&)> onLoadProject;
+	std::function<std::vector<EntityTypeInfo>()> onGetEntityTypes;
 };

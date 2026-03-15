@@ -1,7 +1,6 @@
 #include "renderer/VulkanBase.h"
 #include <iostream>
 #include <fstream>
-#include <stdexcept>
 
 namespace
 {

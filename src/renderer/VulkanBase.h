@@ -1,8 +1,7 @@
 #pragma once
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vector>
-#include <string>
 #include "core/Game.h"
 
 /**
@@ -179,7 +178,6 @@ protected:
 
 	/** @name Helpers */
 	///@{
-
 	/**
 	 * Returns the index of the first memory type satisfying both
 	 * typeFilter and the requested property flags.
@@ -204,6 +202,5 @@ protected:
 	 * GLFW framebuffer resize callback. Sets framebufferResized = true.
 	 */
 	static void FramebufferResizeCallback(GLFWwindow* window, int, int);
-
 	///@}
 };

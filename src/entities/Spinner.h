@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core\EntityRegistry.h"
+#include "core/EntityRegistry.h"
 
 class SpinnerEntity : public Entity
 {
@@ -16,6 +16,5 @@ private:
 
 public:
 	void OnBeginPlay() override;
-
 	void OnFixedUpdate() override;
 };

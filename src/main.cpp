@@ -2,7 +2,7 @@
 
 int main()
 {
-    // Load the engine.
-    Engine::Run("");
-    return 0;
+	// Load the engine.
+	Engine::Run("");
+	return 0;
 }

@@ -13,19 +13,27 @@ struct EntityTypeInfo;
 
 struct EditorStats
 {
-	float deltaTime = 0.f;   ///< Raw frame delta in seconds
-	float fps = 0.f;   ///< Smoothed FPS
-	float timescale = 1.f;   ///< Current timescale (for display)
-	float fixedStep = 0.02f; ///< Current fixed step in seconds (for display)
-	int fixedTicks = 0;     ///< Fixed ticks fired last frame (for display)
+	/** Raw frame delta in seconds */
+	float deltaTime = 0.f;
+	/** Smoothed FPS */
+	float fps = 0.f;
+	/** Current timescale (for display) */
+	float timescale = 1.f;
+	/** Current fixed step in seconds (for display) */
+	float fixedStep = 0.02f;
+	/** Fixed ticks fired last frame (for display) */
+	int fixedTicks = 0;
 };
 
 /** Editor simulation state - polled by Engine each frame. */
 enum class PlayState
 {
-	Editing,  ///< Normal editor mode: entities are editable, game is not running.
-	Playing,  ///< Game loop is running at full (timescale-adjusted) speed.
-	Paused    ///< Game loop is suspended; world is live but getDelta() returns 0.
+	/** Normal editor mode: entities are editable, game is not running. */
+	Editing,
+	/** Game loop is running at full (timescale-adjusted) speed. */
+	Playing,
+	/** Game loop is suspended; world is live but getDelta() returns 0. */
+	Paused
 };
 
 class EngineUI
@@ -51,12 +59,29 @@ public:
 
 	void Draw(VkCommandBuffer cmd, const EditorStats& stats, World& world);
 
-	// ---- Renderer passthroughs (queried by Engine each frame) ----
+	[[nodiscard]]
+	bool IsWireframe() const
+	{
+		return ui.wireframe;
+	}
 
-	[[nodiscard]] bool       IsWireframe()       const { return ui.wireframe; }
-	[[nodiscard]] PlayState  GetPlayState()       const { return ui.playState; }
-	[[nodiscard]] float      GetTimescale()       const { return ui.timescale; }
-	[[nodiscard]] float      GetFixedStep()       const { return ui.fixedStep; }
+	[[nodiscard]]
+	PlayState GetPlayState() const
+	{
+		return ui.playState;
+	}
+
+	[[nodiscard]]
+	float GetTimescale() const
+	{
+		return ui.timescale;
+	}
+
+	[[nodiscard]]
+	float GetFixedStep() const
+	{
+		return ui.fixedStep;
+	}
 
 	/**
 	 * Returns true (and clears the flag) when the user clicked Step Frame.
@@ -64,14 +89,28 @@ public:
 	 */
 	bool ConsumeStepFrame()
 	{
-		if (ui.stepFrameRequested) { ui.stepFrameRequested = false; return true; }
+		if (ui.stepFrameRequested)
+		{
+			ui.stepFrameRequested = false;
+			return true;
+		}
+
 		return false;
 	}
 
 	void NotifyWorldRestored() { ui.selectedId.clear(); }
 
-	[[nodiscard]] bool HasPendingWorldLoad() const { return ui.loadWorldRequested; }
-	[[nodiscard]] const std::string& PendingWorldLoadPath() const { return ui.pendingLoadWorldPath; }
+	[[nodiscard]]
+	bool HasPendingWorldLoad() const
+	{
+		return ui.loadWorldRequested;
+	}
+
+	[[nodiscard]]
+	const std::string& PendingWorldLoadPath() const
+	{
+		return ui.pendingLoadWorldPath;
+	}
 
 	void ClearPendingWorldLoad()
 	{
@@ -84,18 +123,17 @@ public:
 
 private:
 	GLFWwindow* window;
-	VkDevice     device;
-	std::function<void()>                                       onReload;
-	std::function<void()>                                       onBuildAndReload;
-	std::function<void()>                                       onExport;
+	VkDevice device;
+	std::function<void()> onReload;
+	std::function<void()> onBuildAndReload;
+	std::function<void()> onExport;
 	std::function<void(const std::string&, const std::string&)> onNewProject;
-	std::function<void(const std::string&)>                     onLoadProject;
-	std::function<std::vector<EntityTypeInfo>()>                onGetEntityTypes;
+	std::function<void(const std::string&)> onLoadProject;
+	std::function<std::vector<EntityTypeInfo>()> onGetEntityTypes;
 	VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 
 	struct State
 	{
-		// ---------- panel visibility ----------
 		bool showStats = true;
 		bool showAbout = false;
 		bool showHierarchy = true;
@@ -103,37 +141,35 @@ private:
 		bool showViewport = true;
 		bool wireframe = false;
 
-		// ---------- play state ----------
 		PlayState playState = PlayState::Editing;
-		float     timescale = 1.f;
-		float     fixedStep = 0.02f;   ///< seconds per fixed tick (50 Hz default)
-		bool      stepFrameRequested = false; ///< consume one fixed tick while Paused
 
-		// ---------- world settings ----------
-		bool  showWorldSettings = false;
+		float timescale = 1.f;
+		/** Seconds per fixed tick (50 Hz default) */
+		float fixedStep = 0.02f;
+		/** Consume one fixed tick while Paused */
+		bool stepFrameRequested = false;
 
-		// ---------- project dialogs ----------
+		bool showWorldSettings = false;
+
 		// "New Project" still needs a name field; directory is picked via native browser.
 		bool showNewProject = false;
 		char newProjDir[512] = "C:/Projects";
 		char newProjName[64] = "MyGame";
-		// Open Project / Open World / Save World use native OS dialogs - no modal state needed.
-
-		bool        loadWorldRequested = false;
+		bool loadWorldRequested = false;
 		std::string pendingLoadWorldPath;
 
-		// ---------- hierarchy ----------
+		// hierarchy
 		std::string selectedId;
-		bool        renamingEntity = false;
-		char        renameBuffer[128] = "";
+		bool renamingEntity = false;
+		char renameBuffer[128] = "";
 
-		// ---------- 2-D viewport camera ----------
+		// 2-D viewport camera
 		float vpZoom = 64.f;   ///< Pixels per world unit. 64 == 100 %.
 		float vpPanX = 0.f;    ///< World position at viewport centre.
 		float vpPanY = 0.f;
 
-		bool  vpPanning = false;
-		bool  vpDragging = false;
+		bool vpPanning = false;
+		bool vpDragging = false;
 		float vpDragOffX = 0.f;
 		float vpDragOffY = 0.f;
 	} ui;
@@ -141,7 +177,7 @@ private:
 	void DrawHierarchyPanel(World& world);
 	void DrawPropertiesPanel(World& world);
 	void DrawViewportPanel(World& world);
-	void DrawMenuBar(World& world);   ///< Includes play controls inline
+	void DrawMenuBar(World& world);
 	Entity* DrawCreateEntityMenu(World& world) const;
 
 	/**

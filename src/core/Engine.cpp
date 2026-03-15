@@ -1,15 +1,16 @@
 #define GLFW_INCLUDE_VULKAN
 #include "Engine.h"
-#include "ProjectManager.h"
-#include "renderer\Renderer.h"
-#include "entities\Spinner.h"
 #include "World.h"
+#include "ProjectManager.h"
+#include "renderer/Renderer.h"
 #include <iostream>
 #include <fstream>
-#include <atomic>
 #include <mutex>
 #include <windows.h>
 #include <filesystem>
+
+// Include all built-in entities so they get registered.
+#include "entities/Spinner.h"
 
 EngineBindings g_engine;
 
@@ -34,9 +35,9 @@ namespace fs = std::filesystem;
 /**
  * GameDLL - loads the game DLL by first copying both the DLL and its PDB
  * to "_live" siblings, then patching the embedded PDB path inside the copied
- * DLL so the debugger opens TestG_live.pdb instead of the original TestG.pdb.
+ * DLL so the debugger opens _live.pdb instead of the original .pdb.
  *
- * Result: the linker always writes to TestG.dll + TestG.pdb (never locked),
+ * Result: the linker always writes to the now never locked .dll + .pdb
  * while the engine + debugger hold handles only on the _live copies.
  */
 struct GameDLL
@@ -136,10 +137,10 @@ private:
 	 * the _live PDB instead, leaving the originals free for the linker.
 	 *
 	 * newPdbName must be strictly shorter than the current embedded path
-	 * (a bare filename like "GG_live.pdb" is always shorter than the original
+	 * (a bare filename like "_live.pdb" is always shorter than the original
 	 * absolute path). Excess bytes are zeroed.
-	 *
-	 * Returns true on success; on any failure the DLL is left unmodified.
+	 * 
+	 * @returns true on success; on any failure the DLL is left unmodified.
 	 */
 	static bool PatchEmbeddedPdbPath(const std::string& dllPath, const std::string& newPdbName)
 	{

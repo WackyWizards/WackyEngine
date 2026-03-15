@@ -16,11 +16,7 @@ static void RLog(const char* msg)
  * Debug messenger (editor-only Vulkan callback)
  */
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-	VkDebugUtilsMessageTypeFlagsEXT,
-	const VkDebugUtilsMessengerCallbackDataEXT* data,
-	void*)
+static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void* )
 {
 	if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
 	{
@@ -70,10 +66,6 @@ static void DestroyDebugMessenger(VkInstance instance)
 	}
 }
 
-/**
- * Constructor / Destructor
- */
-
 Renderer::Renderer(
 	GLFWwindow* w,
 	std::function<void()> onReload,
@@ -89,12 +81,12 @@ Renderer::Renderer(
 		/*validation=*/ true,
 #endif
 		/*wireframe=*/ false)
-	, onReload(std::move(onReload))
-	, onBuildAndReload(std::move(onBuildAndReload))
-	, onExport(std::move(onExport))
-	, onNewProject(std::move(onNewProject))
-	, onLoadProject(std::move(onLoadProject))
-	, onGetEntityTypes(std::move(onGetEntityTypes))
+	, onReload{ std::move(onReload) }
+	, onBuildAndReload{ std::move(onBuildAndReload) }
+	, onExport{ std::move(onExport) }
+	, onNewProject{ std::move(onNewProject) }
+	, onLoadProject{ std::move(onLoadProject) }
+	, onGetEntityTypes{ std::move(onGetEntityTypes) }
 {
 	if (validationEnabled)
 	{

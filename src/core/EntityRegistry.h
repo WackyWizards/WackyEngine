@@ -56,9 +56,9 @@ struct EntityRegistrar
  */
 #define ENTITY_TYPE(ClassName, ...)                                                     \
 public:                                                                                 \
-    const char* GetTypeName() const override { return #ClassName; }                    \
+    const char* GetTypeName() const override { return #ClassName; }                     \
 private:                                                                                \
-    inline static EntityRegistrar<ClassName> s_registrar{ #ClassName,                  \
-        [] { constexpr const char* _args[] = { __VA_ARGS__ };                          \
-             return (sizeof(_args) / sizeof(_args[0])) > 0 ? _args[0] : nullptr; }()   \
+    inline static EntityRegistrar<ClassName> s_registrar{ #ClassName,                   \
+        [] { constexpr const char* _args[] = { __VA_ARGS__ };                           \
+             return (sizeof(_args) / sizeof(_args[0])) > 0 ? _args[0] : nullptr; }()    \
     };
