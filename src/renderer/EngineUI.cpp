@@ -1065,8 +1065,7 @@ static ImVec2 WorldToScreen(float wx, float wy, float cx, float cy, float panX, 
 	return { cx + (wx - panX) * zoom, cy + (wy - panY) * zoom };
 }
 
-static void ScreenToWorld(float sx, float sy, float cx, float cy, float panX, float panY, float zoom,
-	float& outWx, float& outWy)
+static void ScreenToWorld(float sx, float sy, float cx, float cy, float panX, float panY, float zoom, float& outWx, float& outWy)
 {
 	outWx = panX + (sx - cx) / zoom;
 	outWy = panY + (sy - cy) / zoom;
