@@ -46,8 +46,11 @@ void Renderer::VkCheck(const VkResult result, const char* msg)
 	case VK_ERROR_DEVICE_LOST:
 		resultStr = "VK_ERROR_DEVICE_LOST";
 		break;
-	case VK_ERROR_INCOMPATIBLE_DRIVER:
-		resultStr = "VK_ERROR_INCOMPATIBLE_DRIVER";
+	case VK_ERROR_MEMORY_MAP_FAILED:
+		resultStr = "VK_ERROR_MEMORY_MAP_FAILED";
+		break;
+	case VK_ERROR_LAYER_NOT_PRESENT:
+		resultStr = "VK_ERROR_LAYER_NOT_PRESENT";
 		break;
 	case VK_ERROR_EXTENSION_NOT_PRESENT:
 		resultStr = "VK_ERROR_EXTENSION_NOT_PRESENT";
@@ -55,8 +58,32 @@ void Renderer::VkCheck(const VkResult result, const char* msg)
 	case VK_ERROR_FEATURE_NOT_PRESENT:
 		resultStr = "VK_ERROR_FEATURE_NOT_PRESENT";
 		break;
+	case VK_ERROR_INCOMPATIBLE_DRIVER:
+		resultStr = "VK_ERROR_INCOMPATIBLE_DRIVER";
+		break;
+	case VK_ERROR_TOO_MANY_OBJECTS:
+		resultStr = "VK_ERROR_TOO_MANY_OBJECTS";
+		break;
 	case VK_ERROR_FORMAT_NOT_SUPPORTED:
 		resultStr = "VK_ERROR_FORMAT_NOT_SUPPORTED";
+		break;
+	case VK_ERROR_FRAGMENTED_POOL:
+		resultStr = "VK_ERROR_FRAGMENTED_POOL";
+		break;
+	case VK_ERROR_OUT_OF_POOL_MEMORY:
+		resultStr = "VK_ERROR_OUT_OF_POOL_MEMORY";
+		break;
+	case VK_ERROR_INVALID_EXTERNAL_HANDLE:
+		resultStr = "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+		break;
+	case VK_ERROR_FRAGMENTATION:
+		resultStr = "VK_ERROR_FRAGMENTATION";
+		break;
+	case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
+		resultStr = "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
+		break;
+	case VK_ERROR_UNKNOWN:
+		resultStr = "VK_ERROR_UNKNOWN";
 		break;
 	case VK_ERROR_SURFACE_LOST_KHR:
 		resultStr = "VK_ERROR_SURFACE_LOST_KHR";
