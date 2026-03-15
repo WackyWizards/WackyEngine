@@ -52,3 +52,6 @@ Thumbs.db
 vendor/**/lib/
 vendor/**/bin/
 vendor/**/build/
+
+# Other
+imgui.ini
