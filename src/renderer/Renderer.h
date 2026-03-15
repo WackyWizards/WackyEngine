@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "core\Game.h"
+#include "core\World.h"
 #include "EngineUI.h"
 #include <memory>
 #include <functional>
@@ -16,11 +17,38 @@
 class Renderer
 {
 public:
-	Renderer(GLFWwindow* window, std::function<void()> onReload, std::function<void()> onBuildAndReload, std::function<void(const std::string&, const std::string&)> onNewProject, std::function<void(const std::string&)> onLoadProject);
+	Renderer(
+		GLFWwindow* window,
+		std::function<void()> onReload,
+		std::function<void()> onBuildAndReload,
+		std::function<void()> onExport,
+		std::function<void(const std::string&, const std::string&)> onNewProject,
+		std::function<void(const std::string&)> onLoadProject,
+		std::function<std::vector<EntityTypeInfo>()> onGetEntityTypes
+	);
 	~Renderer();
 
-	void DrawFrame(const SpriteList& scene, const EditorStats& stats);
+	void DrawFrame(const SpriteList& scene, const EditorStats& stats, World& world);
 	void WaitIdle() const;
+
+	/** Passthrough to EngineUI — checked each frame by Engine to load worlds with a resolver. */
+	[[nodiscard]] bool        HasPendingWorldLoad()    const;
+	[[nodiscard]] std::string GetPendingWorldLoadPath()const;
+	void ClearPendingWorldLoad();
+
+	/** Play-mode state — polled by Engine each frame. */
+	[[nodiscard]]
+	PlayState GetPlayState()  const;
+
+	[[nodiscard]]
+	float GetTimescale()  const;
+
+	[[nodiscard]]
+	float GetFixedStep()  const;
+
+	bool ConsumeStepFrame();
+	void NotifyWorldRestored();
+
 private:
 	/** @name Core handles */
 	///@{
@@ -77,26 +105,14 @@ private:
 	bool framebufferResized = false;
 	///@}
 
-	/** @name Sprite SSBO
-	 *
-	 *  One host-visible, persistently-mapped storage buffer per frame in flight.
-	 *  Each frame the CPU memcpy's the current SpriteList into the buffer for
-	 *  that frame slot, then the GPU reads it via the matching descriptor set.
-	 *
-	 *  Shader side (HLSL / Slang, set=0 binding=0):
-	 *    struct Sprite     { float x, y, halfW, halfH, r, g, b; };
-	 *    struct SpriteList { Sprite sprites[MAX_SPRITES]; uint count; };
-	 *    [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
-	 *
-	 *  Then index with: SpriteList list = spriteData[0];
-	 */
-	 ///@{
+	/** @name Sprite SSBO */
+	///@{
 	VkDescriptorSetLayout spriteSetLayout = VK_NULL_HANDLE;
 	VkDescriptorPool spriteDescriptorPool = VK_NULL_HANDLE;
-	std::vector<VkDescriptorSet> spriteDescriptorSets; // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<VkBuffer> spriteBuffers; // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<VkDeviceMemory> spriteBufferMemory; // [MAX_FRAMES_IN_FLIGHT]
-	std::vector<void*> spriteBufferMapped; // [MAX_FRAMES_IN_FLIGHT] - persistently mapped
+	std::vector<VkDescriptorSet> spriteDescriptorSets;
+	std::vector<VkBuffer> spriteBuffers;
+	std::vector<VkDeviceMemory> spriteBufferMemory;
+	std::vector<void*> spriteBufferMapped;
 
 	void CreateSpriteSetLayout();
 	void CreateSpriteBuffers();
@@ -108,14 +124,15 @@ private:
 
 	/** @name Editor UI */
 	///@{
-	/** Tracks the last-committed wireframe state so Renderer knows when to rebuild the pipeline. */
 	bool wireframe = false;
 	std::unique_ptr<EngineUI> engineUI;
 
 	std::function<void()> onReload;
 	std::function<void()> onBuildAndReload;
+	std::function<void()> onExport;
 	std::function<void(const std::string&, const std::string&)> onNewProject;
 	std::function<void(const std::string&)> onLoadProject;
+	std::function<std::vector<EntityTypeInfo>()> onGetEntityTypes;
 	///@}
 
 	/** @name Setup */

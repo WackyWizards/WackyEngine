@@ -152,10 +152,28 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\core\Engine.cpp" />
+    <ClCompile Include="src\core\Entity.cpp" />
+    <ClCompile Include="src\core\Game.cpp" />
+    <ClCompile Include="src\core\Object.cpp" />
     <ClCompile Include="src\core\ProjectManager.cpp" />
+    <ClCompile Include="src\core\Reflection.cpp" />
+    <ClCompile Include="src\core\World.cpp" />
+    <ClCompile Include="src\entities\Spinner.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\EngineUI.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\runtime\main.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\runtime\RuntimeMain.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\runtime\RuntimeRenderer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="vendor\imgui\backends\imgui_impl_glfw.cpp" />
     <ClCompile Include="vendor\imgui\backends\imgui_impl_vulkan.cpp" />
     <ClCompile Include="vendor\imgui\imgui.cpp" />
@@ -165,11 +183,21 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\Engine.h" />
+    <ClInclude Include="src\core\Entity.h" />
+    <ClInclude Include="src\core\EntityRegistry.h" />
     <ClInclude Include="src\core\Game.h" />
+    <ClInclude Include="src\core\Object.h" />
     <ClInclude Include="src\core\Project.h" />
     <ClInclude Include="src\core\ProjectManager.h" />
+    <ClInclude Include="src\core\Reflection.h" />
+    <ClInclude Include="src\core\World.h" />
+    <ClInclude Include="src\entities\Spinner.h" />
     <ClInclude Include="src\renderer\EngineUI.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\runtime\RuntimeRenderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".github\copilot-instructions.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -20,4 +20,6 @@ namespace ProjectManager
 	bool Load(const std::string& projFile, Project& out);
 
 	bool Save(const Project& project);
+
+	bool Export(const Project& project);
 }
