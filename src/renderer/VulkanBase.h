@@ -101,7 +101,7 @@ protected:
 	struct FrameContext
 	{
 		VkCommandBuffer cmd = VK_NULL_HANDLE;
-		uint32_t        imageIndex = 0;
+		uint32_t imageIndex = 0;
 	};
 
 	/** @name Per-frame helpers */
