@@ -229,7 +229,7 @@ void VulkanBase::CreateInstance()
 	ai.pApplicationName = "WackyEngine";
 	ai.apiVersion = VK_API_VERSION_1_3;
 
-	uint32_t     glfwExtCount = 0;
+	uint32_t glfwExtCount = 0;
 	const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
 	std::vector<const char*> exts(glfwExts, glfwExts + glfwExtCount);
 
