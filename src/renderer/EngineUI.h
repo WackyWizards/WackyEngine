@@ -20,7 +20,7 @@ struct EditorStats
 	int fixedTicks = 0;     ///< Fixed ticks fired last frame (for display)
 };
 
-/** Editor simulation state — polled by Engine each frame. */
+/** Editor simulation state - polled by Engine each frame. */
 enum class PlayState
 {
 	Editing,  ///< Normal editor mode: entities are editable, game is not running.
@@ -117,7 +117,7 @@ private:
 		bool showNewProject = false;
 		char newProjDir[512] = "C:/Projects";
 		char newProjName[64] = "MyGame";
-		// Open Project / Open World / Save World use native OS dialogs — no modal state needed.
+		// Open Project / Open World / Save World use native OS dialogs - no modal state needed.
 
 		bool        loadWorldRequested = false;
 		std::string pendingLoadWorldPath;

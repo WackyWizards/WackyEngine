@@ -2,16 +2,16 @@
 #include <random>
 
 // Internal UUID generator
-// RFC-4122 §4.4 — version 4 (random):
+// RFC-4122 §4.4 - version 4 (random):
 //   - 122 bits of cryptographically-seeded random data
 //   - bits 12-15 of octet 6  set to 0100  (version = 4)
 //   - bits  6-7  of octet 8  set to 10    (variant = RFC 4122)
 //
 // We use std::random_device to seed a mt19937_64 engine.
 // std::random_device maps to:
-//   Windows  — BCryptGenRandom (CNG)
-//   Linux    — /dev/urandom (or getrandom syscall)
-//   macOS    — /dev/urandom
+//   Windows  - BCryptGenRandom (CNG)
+//   Linux    - /dev/urandom (or getrandom syscall)
+//   macOS    - /dev/urandom
 // All of those are cryptographically strong.
 // It would be simpler if we only wanted to support Windows, but I want multiplatform in case I move to Linux, lol.
 

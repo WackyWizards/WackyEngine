@@ -162,6 +162,7 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer\EngineUI.cpp" />
     <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\renderer\VulkanBase.cpp" />
     <ClCompile Include="src\runtime\main.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -194,6 +195,7 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
     <ClInclude Include="src\entities\Spinner.h" />
     <ClInclude Include="src\renderer\EngineUI.h" />
     <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\renderer\VulkanBase.h" />
     <ClInclude Include="src\runtime\RuntimeRenderer.h" />
   </ItemGroup>
   <ItemGroup>

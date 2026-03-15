@@ -138,7 +138,7 @@ struct Time
 	/**
 	 * The fixed timestep size in seconds (e.g. 0.02 for 50 Hz).
 	 * Use this inside FixedUpdate() if you need the step size explicitly.
-	 * Already scaled by timescale — the same value passed to FixedUpdate(fdt).
+	 * Already scaled by timescale - the same value passed to FixedUpdate(fdt).
 	 */
 	static float FixedDelta()
 	{

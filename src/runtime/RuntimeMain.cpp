@@ -21,7 +21,7 @@ EngineBindings g_engine;
 
 /**
  * EngineBindings stores plain C function pointers, not std::function.
- * Capturing lambdas cannot convert to plain function pointers — only
+ * Capturing lambdas cannot convert to plain function pointers - only
  * captureless ones can. Runtime state is therefore in static storage
  * so the binding lambdas can reach it without capturing.
  */

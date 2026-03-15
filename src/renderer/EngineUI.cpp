@@ -18,7 +18,7 @@
  /**
   * Native OS file and folder dialogs (Windows only).
   *
-  * windows.h is included here — after GLFW/Vulkan — so that APIENTRY is already
+  * windows.h is included here - after GLFW/Vulkan - so that APIENTRY is already
   * defined and windows.h silently skips its own definition, eliminating C4005.
   * glfw3native.h is intentionally avoided: GetActiveWindow() is sufficient for
   * dialog ownership and sidesteps the GLFWwindow/GLFWAPI forward-declaration issues.
@@ -105,7 +105,7 @@ static std::string NativeBrowseFolder(const std::string& startPath = {})
 {
 	std::string result;
 
-	/** CoInitializeEx failure is non-fatal — the dialog may still work. */
+	/** CoInitializeEx failure is non-fatal - the dialog may still work. */
 	static_cast<void>(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE));
 
 	IFileOpenDialog* pfd = nullptr;
@@ -153,7 +153,7 @@ static std::string NativeBrowseFolder(const std::string& startPath = {})
 #else
 
   /**
-   * Non-Windows stubs — callers treat an empty return value as cancellation.
+   * Non-Windows stubs - callers treat an empty return value as cancellation.
    */
 static std::string NativeOpenFile(const wchar_t*, const wchar_t*)
 {
@@ -257,7 +257,7 @@ std::vector<EntityTypeInfo> EngineUI::GetAllEntityTypes() const
 	 * EntityRegistry singleton. Built-in types like SpinnerEntity therefore
 	 * register in both registries and would appear twice without this guard.
 	 *
-	 * The proper fix is in CMakeLists.txt — engine source files should not be
+	 * The proper fix is in CMakeLists.txt - engine source files should not be
 	 * compiled into the game DLL. This deduplication acts as a safety net.
 	 */
 	std::vector<EntityTypeInfo> types;
@@ -623,7 +623,7 @@ void EngineUI::DrawMenuBar(World& world)
 
 		ImGui::SameLine();
 
-		/** Step Frame button — only meaningful when Paused */
+		/** Step Frame button - only meaningful when Paused */
 		if (!paused)
 		{
 			ImGui::BeginDisabled();
@@ -703,8 +703,8 @@ void EngineUI::DrawHierarchyPanel(World& world)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.65f, 0.1f, 1.f));
 		ImGui::TextWrapped(ui.playState == PlayState::Paused
-			? ICON_PAUSE "  Paused — stop to edit"
-			: ICON_PLAY  "  Playing — pause or stop to edit");
+			? ICON_PAUSE "  Paused - stop to edit"
+			: ICON_PLAY  "  Playing - pause or stop to edit");
 		ImGui::PopStyleColor();
 		ImGui::Separator();
 	}
@@ -1134,7 +1134,7 @@ void EngineUI::DrawViewportPanel(World& world)
 
 	dl->PushClipRect(winPos, winEnd, true);
 
-	/** Background — tinted based on play state */
+	/** Background - tinted based on play state */
 	const bool playing = (ui.playState == PlayState::Playing);
 	const bool paused = (ui.playState == PlayState::Paused);
 	ImU32 bgCol = IM_COL32(28, 28, 32, 255);
@@ -1523,7 +1523,7 @@ void EngineUI::Draw(const VkCommandBuffer cmd, const EditorStats& stats, World& 
 		ImGui::DragFloat("Timescale override", &ui.timescale, 0.05f, 0.f, 0.f, "%.2fx");
 		if (ImGui::IsItemHovered())
 		{
-			ImGui::SetTooltip("Drag or Ctrl+click — no upper limit.\n"
+			ImGui::SetTooltip("Drag or Ctrl+click - no upper limit.\n"
 				"< 1 = slow motion   1 = normal   > 1 = fast forward");
 		}
 		ui.timescale = std::max(0.f, ui.timescale);
@@ -1651,7 +1651,7 @@ void EngineUI::Draw(const VkCommandBuffer cmd, const EditorStats& stats, World& 
 
 	/**
 	 * Open Project, Open World, and Save World As are handled by native OS dialogs
-	 * triggered directly from the menu items — no modal state is needed here.
+	 * triggered directly from the menu items - no modal state is needed here.
 	 */
 
 	 /** About modal */

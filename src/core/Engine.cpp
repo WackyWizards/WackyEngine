@@ -32,7 +32,7 @@ namespace
 namespace fs = std::filesystem;
 
 /**
- * GameDLL — loads the game DLL by first copying both the DLL and its PDB
+ * GameDLL - loads the game DLL by first copying both the DLL and its PDB
  * to "_live" siblings, then patching the embedded PDB path inside the copied
  * DLL so the debugger opens TestG_live.pdb instead of the original TestG.pdb.
  *
@@ -59,7 +59,7 @@ struct GameDLL
 		/**
 		 * If a PDB exists alongside the DLL, copy it and patch the embedded
 		 * debug path in the live DLL so the debugger follows the live copy.
-		 * If either step fails we carry on — debug symbols simply won't load,
+		 * If either step fails we carry on - debug symbols simply won't load,
 		 * but the hot-reload itself still works.
 		 */
 		const fs::path srcPdb = fs::path(path).replace_extension(".pdb");
@@ -344,7 +344,7 @@ namespace
 	float s_scaledDelta = 0.f;
 	/** Fixed step size exposed via getFixedDelta(); updated from world.fixedStep each frame. */
 	float s_fixedDelta = 0.02f;
-	/** Fixed-update accumulator — carries leftover time across frames. */
+	/** Fixed-update accumulator - carries leftover time across frames. */
 	float s_fixedAccum = 0.f;
 	/** Step-frame: advance exactly one fixed tick next frame even while Paused. */
 	bool s_stepFrame = false;
@@ -370,7 +370,7 @@ void Engine::Run(const std::string& gameDllPath)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	Log("glfwCreateWindow");
 	GLFWwindow* window = glfwCreateWindow(800, 600, "WackyEngine", nullptr, nullptr);
-	Log("window created");
+	Log("Window created");
 
 	try
 	{
@@ -422,7 +422,7 @@ void Engine::Run(const std::string& gameDllPath)
 			std::cout << "[Engine] Warning: could not locate core/Game.h\n";
 		}
 
-		Log("constructing Renderer...");
+		Log("Constructing Renderer...");
 		Renderer renderer(window,
 			[] { s_reloadRequested = true; },
 			[] { s_buildAndReloadRequested = true; },
@@ -489,7 +489,7 @@ void Engine::Run(const std::string& gameDllPath)
 			RefreshEntities(*dll);
 		}
 
-		Log("Renderer constructed OK — entering main loop");
+		Log("Renderer constructed OK - entering main loop");
 
 		const auto start = std::chrono::steady_clock::now();
 		auto prev = start;
@@ -499,7 +499,7 @@ void Engine::Run(const std::string& gameDllPath)
 		{
 			glfwPollEvents();
 
-			/** Hot-Reload (no build) — snapshot, swap DLL, restore world */
+			/** Hot-Reload (no build) - snapshot, swap DLL, restore world */
 			if (s_reloadRequested.exchange(false) && dll)
 			{
 				const std::string snapshot = currentWorld.SerializeToString();
@@ -514,7 +514,7 @@ void Engine::Run(const std::string& gameDllPath)
 			}
 
 			/**
-			 * Build & Reload — cmake on a background thread so the window stays live.
+			 * Build & Reload - cmake on a background thread so the window stays live.
 			 *
 			 * The world is snapshotted and cleared BEFORE the DLL is unloaded.
 			 * Every game-type entity (TestEntity etc.) holds a vtable pointer into
@@ -552,7 +552,7 @@ void Engine::Run(const std::string& gameDllPath)
 			{
 				if (s_buildSucceeded)
 				{
-					std::cout << "[Engine] Build succeeded — reloading DLL.\n";
+					std::cout << "[Engine] Build succeeded - reloading DLL.\n";
 					try
 					{
 						dll = std::make_unique<GameDLL>(currentProject.dllPath);
@@ -581,7 +581,7 @@ void Engine::Run(const std::string& gameDllPath)
 				}
 			}
 
-			/** New Project — cmake configure on a background thread */
+			/** New Project - cmake configure on a background thread */
 			if (s_newProjectRequested.exchange(false) && !s_configureInProgress)
 			{
 				s_configureInProgress = true;
@@ -724,7 +724,7 @@ void Engine::Run(const std::string& gameDllPath)
 						{
 							dll->game->Shutdown();
 						}
-						std::cout << "[Engine] Stopped — world restored.\n";
+						std::cout << "[Engine] Stopped - world restored.\n";
 					}
 
 					s_enginePlayState = newState;
@@ -799,7 +799,7 @@ void Engine::Run(const std::string& gameDllPath)
 			}
 
 			/**
-			 * Pending world load from the "Open World" dialog — handled here so
+			 * Pending world load from the "Open World" dialog - handled here so
 			 * we can inject the resolver with the currently loaded entity types.
 			 */
 			if (renderer.HasPendingWorldLoad())

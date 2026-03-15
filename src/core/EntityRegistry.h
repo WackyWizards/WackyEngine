@@ -48,7 +48,7 @@ struct EntityRegistrar
 
 /**
  * Place this macro once inside any Entity subclass to register it with the editor.
- * Category is optional — omit it to appear under "General".
+ * Category is optional - omit it to appear under "General".
  * The macro:
  *   1. Overrides GetTypeName() to return the class name as a string literal.
  *   2. Declares an inline static EntityRegistrar that fires at DLL load time

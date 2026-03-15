@@ -36,8 +36,8 @@ extern "C" __declspec(dllexport) Game* CreateGame()
  * CMakeLists.txt written into the root of every new project.
  *
  * Two targets:
- *   %NAME%        — shared library for editor hot-reload (Debug)
- *   %NAME%_Export — standalone executable for distribution (Release)
+ *   %NAME%        - shared library for editor hot-reload (Debug)
+ *   %NAME%_Export - standalone executable for distribution (Release)
  *
  * The export target compiles only the runtime + core files needed to run
  * the game. Engine.cpp, Renderer.cpp, EngineUI.cpp, and ImGui are
@@ -82,7 +82,7 @@ set_target_properties(%NAME% PROPERTIES
 )
 
 # ---- Standalone export executable ----
-# Only runtime + core — no Engine.cpp, Renderer.cpp, EngineUI, or ImGui.
+# Only runtime + core
 # Spinner.cpp is included so built-in engine entity types are registered
 # and can be deserialised from saved worlds.
 add_executable(%NAME%_Export
@@ -93,6 +93,7 @@ add_executable(%NAME%_Export
     "${ENGINE_ROOT}/src/entities/Spinner.cpp"
     "${ENGINE_RUNTIME_DIR}/RuntimeMain.cpp"
     "${ENGINE_RUNTIME_DIR}/RuntimeRenderer.cpp"
+    "${ENGINE_RUNTIME_DIR}/../renderer/VulkanBase.cpp"
     "${ENGINE_RUNTIME_DIR}/main.cpp"
 )
 

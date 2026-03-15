@@ -1,6 +1,7 @@
 # Coding Style
 
 C++20 Standards.
+Don't use emdashes.
 
 ## Indentation
 - Use **tabs**, not spaces.

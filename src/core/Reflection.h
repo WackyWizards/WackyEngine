@@ -63,9 +63,7 @@ struct Field
 	template<typename T>
 	const T& GetValue(const void* instance) const
 	{
-		return *reinterpret_cast<const T*>(
-			static_cast<const char*>(instance) + offset
-			);
+		return *reinterpret_cast<const T*>(static_cast<const char*>(instance) + offset);
 	}
 
 	/**
@@ -74,9 +72,7 @@ struct Field
 	template<typename T>
 	void SetValue(void* instance, const T& value) const
 	{
-		*reinterpret_cast<T*>(
-			static_cast<char*>(instance) + offset
-			) = value;
+		*reinterpret_cast<T*>(static_cast<char*>(instance) + offset) = value;
 	}
 
 	const void* GetRaw(const void* instance) const
