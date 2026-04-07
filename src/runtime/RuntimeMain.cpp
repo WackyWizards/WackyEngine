@@ -78,7 +78,16 @@ void RuntimeRun(const std::string& startWorldPath)
 		s_pending.Push(s);
 	};
 	bindings.loadTexture = [](const char* path) -> Texture* {
-		return new Texture(s_runtimeRenderer->LoadTexture(path));
+		try
+		{
+			return new Texture(s_runtimeRenderer->LoadTexture(path));
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "[WARNING] Failed to load texture '" << path << "': " << e.what() << "\n";
+			std::cerr << "[WARNING] Using white fallback texture.\n";
+			return new Texture(s_runtimeRenderer->CreateWhiteTexture());
+		}
 	};
 	bindings.bindTexture = [](const Texture* tex) {
 		s_runtimeRenderer->BindTexture(*tex);

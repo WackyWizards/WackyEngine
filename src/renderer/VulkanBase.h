@@ -44,6 +44,13 @@ public:
 	 */
 	void BindTexture(const Texture& tex) const;
 
+	/**
+	 * Uploads a 1x1 opaque-white pixel as the fallback texture.
+	 * Used when texture loading fails, so the game continues with a white placeholder.
+	 */
+	[[nodiscard]]
+	Texture CreateWhiteTexture() const;
+
 	VulkanBase(const VulkanBase&) = delete;
 	VulkanBase& operator=(const VulkanBase&) = delete;
 
@@ -283,13 +290,6 @@ protected:
 	 */
 	[[nodiscard]]
 	VkSampler CreateTextureSampler() const;
-
-	/**
-	 * Uploads a 1x1 opaque-white pixel as the fallback texture.
-	 * Bound at startup so descriptor set binding 1 is never uninitialised.
-	 */
-	[[nodiscard]]
-	Texture CreateWhiteTexture() const;
 
 	///@}
 };
