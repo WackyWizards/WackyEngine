@@ -26,6 +26,7 @@ const std::map<std::string, std::vector<Field>>& Reflection::GetAllFields()
 
 const std::vector<Field>* Reflection::GetFields(const std::string& className)
 {
+	std::lock_guard lock(GetMutex());
 	const auto& map = FieldMap();
 	const auto it = map.find(className);
 	if (it != map.end())
@@ -37,6 +38,7 @@ const std::vector<Field>* Reflection::GetFields(const std::string& className)
 
 bool Reflection::HasFields(const std::string& className)
 {
+	std::lock_guard lock(GetMutex());
 	return FieldMap().contains(className);
 }
 
