@@ -135,7 +135,12 @@ VkShaderModule VulkanBase::CreateShaderModule(const std::vector<char>& code) con
 	return mod;
 }
 
-void VulkanBase::FramebufferResizeCallback(GLFWwindow* window, int, int)
+/**
+ * GLFW framebuffer resize callback.
+ * Width and height parameters are available but not used - the resize is
+ * detected via framebufferResized flag which is checked before the next frame.
+ */
+void VulkanBase::FramebufferResizeCallback(GLFWwindow* window, [[maybe_unused]] int, [[maybe_unused]] int)
 {
 	const auto base = static_cast<VulkanBase*>(glfwGetWindowUserPointer(window));
 	base->framebufferResized = true;
