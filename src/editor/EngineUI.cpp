@@ -4,9 +4,9 @@
  */
 #define GLFW_INCLUDE_VULKAN
 #include "EngineUI.h"
-#include "core\World.h"
-#include "core\Reflection.h"
-#include "core\EntityRegistry.h"
+#include "core/World.h"
+#include "core/Reflection.h"
+#include "core/EntityRegistry.h"
 #include "imgui_impl_glfw.h"
 #include <numbers>
 #include <stdexcept>
@@ -66,8 +66,7 @@ static std::string NativeOpenFile(const wchar_t* filter, const wchar_t* defExt)
  * Opens a native save-file dialog.
  * Returns the chosen path as UTF-8, or an empty string if cancelled.
  */
-static std::string NativeSaveFile(const wchar_t* filter, const wchar_t* defExt,
-	const wchar_t* defaultName = nullptr)
+static std::string NativeSaveFile(const wchar_t* filter, const wchar_t* defExt, const wchar_t* defaultName = nullptr)
 {
 	wchar_t buf[MAX_PATH] = {};
 
@@ -1089,7 +1088,7 @@ void EngineUI::DrawViewportPanel(World& world)
 
 	ImGui::SetNextWindowPos({ vpX, vpY }, ImGuiCond_Always);
 	ImGui::SetNextWindowSize({ vpW, vpH }, ImGuiCond_Always);
-	ImGui::SetNextWindowBgAlpha(1.f);
+	ImGui::SetNextWindowBgAlpha(0.f);
 
 	constexpr ImGuiWindowFlags vpFlags =
 		ImGuiWindowFlags_NoMove |
@@ -1137,6 +1136,8 @@ void EngineUI::DrawViewportPanel(World& world)
 	/** Background - tinted based on play state */
 	const bool playing = (ui.playState == PlayState::Playing);
 	const bool paused = (ui.playState == PlayState::Paused);
+
+	/*
 	ImU32 bgCol = IM_COL32(28, 28, 32, 255);
 	if (playing)
 	{
@@ -1147,6 +1148,7 @@ void EngineUI::DrawViewportPanel(World& world)
 		bgCol = IM_COL32(28, 26, 18, 255);
 	}
 	dl->AddRectFilled(winPos, winEnd, bgCol);
+	*/
 
 	/** Grid */
 	{
@@ -1437,6 +1439,7 @@ void EngineUI::Draw(const VkCommandBuffer cmd, const EditorStats& stats, World& 
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+	ui.lastMenuBarH = ImGui::GetFrameHeight();
 
 	DrawMenuBar(world);
 	DrawViewportPanel(world);

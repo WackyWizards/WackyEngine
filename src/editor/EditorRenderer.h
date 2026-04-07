@@ -36,7 +36,7 @@ public:
 	[[nodiscard]]
 	std::string GetPendingWorldLoadPath() const;
 
-	void ClearPendingWorldLoad();
+	void ClearPendingWorldLoad() const;
 
 	[[nodiscard]]
 	PlayState GetPlayState() const;
@@ -46,8 +46,8 @@ public:
 
 	[[nodiscard]]
 	float GetFixedStep() const;
-	bool ConsumeStepFrame();
-	void NotifyWorldRestored();
+	bool ConsumeStepFrame() const;
+	void NotifyWorldRestored() const;
 
 private:
 	bool wireframe = false;

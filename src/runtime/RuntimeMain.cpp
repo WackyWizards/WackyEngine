@@ -2,10 +2,12 @@
 #include "core/Game.h"
 #include "core/World.h"
 #include "core/EntityRegistry.h"
-#include "runtime/RuntimeRenderer.h"
+#include "runtime/renderer/RuntimeRenderer.h"
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 #include <chrono>
+#include <iostream>
+#include <filesystem>
 
 /**
  * Declared by the game's compiled-in Game.cpp.
@@ -32,10 +34,14 @@ namespace
 	static float s_fixedDelta = 0.02f;
 	static bool s_keys[512]{};
 	static SpriteList s_pending{};
+	static RuntimeRenderer* s_runtimeRenderer = nullptr;
 }
 
 void RuntimeRun(const std::string& startWorldPath)
 {
+	std::cerr << "[Runtime] Starting game with world: " << startWorldPath << "\n";
+	std::cerr << "[Runtime] Current working directory: " << std::filesystem::current_path() << "\n";
+
 	if (!glfwInit())
 	{
 		throw std::runtime_error("GLFW init failed");
@@ -45,6 +51,7 @@ void RuntimeRun(const std::string& startWorldPath)
 	GLFWwindow* window = glfwCreateWindow(1280, 720, "Game", nullptr, nullptr);
 
 	RuntimeRenderer renderer(window);
+	s_runtimeRenderer = &renderer;
 
 	std::unique_ptr<Game> game(CreateGame());
 
@@ -69,25 +76,43 @@ void RuntimeRun(const std::string& startWorldPath)
 	bindings.pushSprite = [](Sprite s)
 	{
 		s_pending.Push(s);
-		};
+	};
+	bindings.loadTexture = [](const char* path) -> Texture* {
+		return new Texture(s_runtimeRenderer->LoadTexture(path));
+	};
+	bindings.bindTexture = [](const Texture* tex) {
+		s_runtimeRenderer->BindTexture(*tex);
+	};
+	bindings.destroyTexture = [](Texture* tex) {
+		s_runtimeRenderer->DestroyTexture(*tex);
+		delete tex;
+	};
 
 	g_engine = bindings;
 
 	World world;
-	world.LoadFromJson(startWorldPath, [](const char* typeName) -> Entity*
-		{
-			for (const auto& info : EntityRegistry::Get().GetAll())
+	try
+	{
+		world.LoadFromJson(startWorldPath, [](const char* typeName) -> Entity*
 			{
-				if (info.typeName && strcmp(info.typeName, typeName) == 0 && info.factory)
+				for (const auto& info : EntityRegistry::Get().GetAll())
 				{
-					return info.factory();
+					if (info.typeName && strcmp(info.typeName, typeName) == 0 && info.factory)
+					{
+						return info.factory();
+					}
 				}
-			}
-			return nullptr;
-		});
+				return nullptr;
+			});
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "[ERROR] Failed to load world from '" << startWorldPath << "': " << e.what() << "\n";
+		throw;
+	}
 
 	game->Init(bindings);
-	world.BeginPlay(); 
+	world.BeginPlay();
 
 	float fixedAccum = 0.f;
 	auto prev = std::chrono::steady_clock::now();

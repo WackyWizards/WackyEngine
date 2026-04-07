@@ -70,7 +70,11 @@ add_library(%NAME% SHARED
 
 target_include_directories(%NAME% PRIVATE
     "${ENGINE_CORE_DIR}"
+    "${ENGINE_CORE_DIR}/.."
+    "${GLFW_VERSION_DIR}/include"
 )
+
+target_link_libraries(%NAME% PRIVATE Vulkan::Vulkan)
 
 set_target_properties(%NAME% PROPERTIES
     CXX_STANDARD 20
@@ -83,24 +87,34 @@ set_target_properties(%NAME% PROPERTIES
 
 # ---- Standalone export executable ----
 # Only runtime + core
+
+file(GLOB ENGINE_RENDERER CONFIGURE_DEPENDS
+    "${ENGINE_ROOT}/src/renderer/*.cpp"
+)
+
+file(GLOB ENGINE_RUNTIME_RENDERER CONFIGURE_DEPENDS
+    "${ENGINE_ROOT}/src/runtime/renderer/*.cpp"
+)
+
 # Spinner.cpp is included so built-in engine entity types are registered
 # and can be deserialised from saved worlds.
-add_executable(%NAME%_Export
-    src/Game.cpp
-    "${ENGINE_CORE_DIR}/Object.cpp"
-    "${ENGINE_CORE_DIR}/Reflection.cpp"
-    "${ENGINE_CORE_DIR}/World.cpp"
-    "${ENGINE_ROOT}/src/entities/Spinner.cpp"
-    "${ENGINE_RUNTIME_DIR}/RuntimeMain.cpp"
-    "${ENGINE_RUNTIME_DIR}/RuntimeRenderer.cpp"
-    "${ENGINE_RUNTIME_DIR}/../renderer/VulkanBase.cpp"
-    "${ENGINE_RUNTIME_DIR}/main.cpp"
+add_executable(%NAME%_Export WIN32
+	src/Game.cpp
+	"${ENGINE_CORE_DIR}/Object.cpp"
+	"${ENGINE_CORE_DIR}/Reflection.cpp"
+	"${ENGINE_CORE_DIR}/World.cpp"
+	"${ENGINE_ROOT}/src/entities/Spinner.cpp"
+	${ENGINE_RENDERER}
+	${ENGINE_RUNTIME_RENDERER}
+	"${ENGINE_RUNTIME_DIR}/RuntimeMain.cpp"
+	"${ENGINE_RUNTIME_DIR}/main.cpp"
 )
 
 target_include_directories(%NAME%_Export PRIVATE
     "${ENGINE_CORE_DIR}"
     "${ENGINE_RUNTIME_DIR}/.."
     "${GLFW_VERSION_DIR}/include"
+	"${ENGINE_ROOT}/vendor"
 )
 
 target_compile_definitions(%NAME%_Export PRIVATE WACKY_EXPORT)

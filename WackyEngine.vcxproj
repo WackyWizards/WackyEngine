@@ -158,20 +158,18 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
     <ClCompile Include="src\core\ProjectManager.cpp" />
     <ClCompile Include="src\core\Reflection.cpp" />
     <ClCompile Include="src\core\World.cpp" />
+    <ClCompile Include="src\editor\EditorRenderer.cpp" />
+    <ClCompile Include="src\editor\EngineUI.cpp" />
     <ClCompile Include="src\entities\Spinner.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\renderer\EngineUI.cpp" />
-    <ClCompile Include="src\renderer\Renderer.cpp" />
+    <ClCompile Include="src\renderer\Texture.cpp" />
     <ClCompile Include="src\renderer\VulkanBase.cpp" />
     <ClCompile Include="src\runtime\main.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="src\runtime\renderer\RuntimeRenderer.cpp" />
     <ClCompile Include="src\runtime\RuntimeMain.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="src\runtime\RuntimeRenderer.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -192,11 +190,13 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
     <ClInclude Include="src\core\ProjectManager.h" />
     <ClInclude Include="src\core\Reflection.h" />
     <ClInclude Include="src\core\World.h" />
+    <ClInclude Include="src\editor\EditorRenderer.h" />
+    <ClInclude Include="src\editor\EngineUI.h" />
     <ClInclude Include="src\entities\Spinner.h" />
-    <ClInclude Include="src\renderer\EngineUI.h" />
-    <ClInclude Include="src\renderer\Renderer.h" />
+    <ClInclude Include="src\renderer\stb_image.h" />
+    <ClInclude Include="src\renderer\Texture.h" />
     <ClInclude Include="src\renderer\VulkanBase.h" />
-    <ClInclude Include="src\runtime\RuntimeRenderer.h" />
+    <ClInclude Include="src\runtime\renderer\RuntimeRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />

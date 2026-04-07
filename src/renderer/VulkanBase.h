@@ -1,8 +1,15 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include "core/Game.h"
+
+struct CameraUniforms {
+	/** Viewport center in NDC */
+	float ndcCenterX, ndcCenterY;
+	/** Zoom / half-window-size */
+	float scaleX, scaleY;
+	/** World position at viewport center */
+	float panX, panY;
+};
 
 /**
  * Shared Vulkan base class.
@@ -16,6 +23,26 @@ public:
 	virtual ~VulkanBase();
 
 	void WaitIdle() const;
+
+	/**
+	 * Loads a PNG from disk, uploads it to a DEVICE_LOCAL VkImage,
+	 * and returns the fully initialized Texture.
+	 * Uses NEAREST filtering, suitable for pixel-art sprites for now.
+	 * The caller is responsible for calling DestroyTexture when done.
+	 */
+	Texture LoadTexture(const std::string& path) const;
+
+	/**
+	 * Releases all Vulkan objects owned by tex and resets it to the default state.
+	 */
+	void DestroyTexture(Texture& tex) const;
+
+	/**
+	 * Updates the combined-image-sampler descriptor (binding 1) on all
+	 * per-frame descriptor sets to point at tex.
+	 * Call once after loading a texture, before the next DrawSprites.
+	 */
+	void BindTexture(const Texture& tex) const;
 
 	VulkanBase(const VulkanBase&) = delete;
 	VulkanBase& operator=(const VulkanBase&) = delete;
@@ -54,7 +81,7 @@ protected:
 
 	/** @name Command recording */
 	///@{
-	VkCommandPool commandPool;
+	VkCommandPool commandPool = VK_NULL_HANDLE;
 	std::vector<VkCommandBuffer> commandBuffers;
 	///@}
 
@@ -78,6 +105,15 @@ protected:
 	std::vector<void*> spriteBufferMapped;
 	///@}
 
+	/** @name Textures */
+	///@{
+	/**
+	 * 1x1 white fallback bound at startup.
+	 * Ensures binding 1 is always valid even when no game texture is loaded.
+	 */
+	Texture m_whiteTexture;
+	///@}
+
 	/** @name Feature flags */
 	///@{
 	bool validationEnabled = false;
@@ -88,7 +124,7 @@ protected:
 	 * Updates the wireframe flag. RecreateSwapchain must be called
 	 * afterwards for the pipeline to reflect the change.
 	 */
-	void SetWireframe(bool enabled)
+	void SetWireframe(const bool enabled)
 	{
 		wireframeEnabled = enabled;
 	}
@@ -116,18 +152,18 @@ protected:
 	/**
 	 * Uploads scene data to the SSBO and begins the render pass.
 	 */
-	void BeginRenderPass(const FrameContext& ctx, const SpriteList& scene);
+	void BeginRenderPass(const FrameContext& ctx, const SpriteList& scene) const;
 
 	/**
 	 * Binds the pipeline and sprite descriptor set, then issues vkCmdDraw
 	 * for all sprites. Call between BeginRenderPass and EndRenderPass.
 	 */
-	void DrawSprites(const FrameContext& ctx, const SpriteList& scene);
+	void DrawSprites(const FrameContext& ctx, const SpriteList& scene, const CameraUniforms& cam) const;
 
 	/**
 	 * Ends the render pass.
 	 */
-	void EndRenderPass(const FrameContext& ctx);
+	static void EndRenderPass(const FrameContext& ctx);
 
 	/**
 	 * Calls vkEndCommandBuffer, submits to the graphics queue, presents,
@@ -202,5 +238,58 @@ protected:
 	 * GLFW framebuffer resize callback. Sets framebufferResized = true.
 	 */
 	static void FramebufferResizeCallback(GLFWwindow* window, int, int);
+	///@}
+
+	/** @name Texture helpers */
+	///@{
+
+	/**
+	 * Allocates and begins a one-shot command buffer on the graphics queue.
+	 * Must be closed with EndSingleTimeCommands.
+	 */
+	VkCommandBuffer BeginSingleTimeCommands() const;
+
+	/**
+	 * Ends, submits, and frees the command buffer returned by BeginSingleTimeCommands.
+	 * Blocks until the queue is idle.
+	 */
+	void EndSingleTimeCommands(VkCommandBuffer cmd) const;
+
+	/**
+	 * Creates a DEVICE_LOCAL VkImage and allocates its backing memory.
+	 */
+	void CreateImage(uint32_t w, uint32_t h, VkFormat fmt, VkImageUsageFlags usage, VkImage& outImage, VkDeviceMemory& outMemory) const;
+
+	/**
+	 * Records a pipeline barrier that transitions image between the two layouts.
+	 * Only the UNDEFINED->TRANSFER_DST and TRANSFER_DST->SHADER_READ_ONLY transitions are supported.
+	 */
+	void TransitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) const;
+
+	/**
+	 * Copies the entire buffer into the image, which must already be in TRANSFER_DST_OPTIMAL layout.
+	 */
+	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t w, uint32_t h) const;
+
+	/**
+	 * Creates a 2D VkImageView for a texture in R8G8B8A8_SRGB format.
+	 */
+	[[nodiscard]]
+	VkImageView CreateTextureImageView(VkImage image) const;
+
+	/**
+	 * Creates a VkSampler using NEAREST filtering and CLAMP_TO_EDGE.
+	 * NEAREST preserves pixel-art sharpness.
+	 */
+	[[nodiscard]]
+	VkSampler CreateTextureSampler() const;
+
+	/**
+	 * Uploads a 1x1 opaque-white pixel as the fallback texture.
+	 * Bound at startup so descriptor set binding 1 is never uninitialised.
+	 */
+	[[nodiscard]]
+	Texture CreateWhiteTexture() const;
+
 	///@}
 };

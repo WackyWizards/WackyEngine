@@ -26,7 +26,7 @@ struct EditorStats
 };
 
 /** Editor simulation state - polled by Engine each frame. */
-enum class PlayState
+enum class PlayState : std::uint8_t
 {
 	/** Normal editor mode: entities are editable, game is not running. */
 	Editing,
@@ -58,6 +58,42 @@ public:
 	~EngineUI();
 
 	void Draw(VkCommandBuffer cmd, const EditorStats& stats, World& world);
+
+	[[nodiscard]]
+	float GetVpPanX() const
+	{
+		return ui.vpPanX;
+	}
+	
+	[[nodiscard]]
+	float GetVpPanY() const
+	{
+		return ui.vpPanY;
+	}
+	
+	[[nodiscard]]
+	float GetVpZoom() const
+	{
+		return ui.vpZoom;
+	}
+	
+	[[nodiscard]]
+	bool IsHierarchyVisible() const
+	{
+		return ui.showHierarchy;
+	}
+
+	[[nodiscard]]
+	bool IsPropertiesVisible() const
+	{
+		return ui.showProperties;
+	}
+
+	[[nodiscard]]
+	float GetMenuBarHeight() const
+	{
+		return ui.lastMenuBarH;
+	}
 
 	[[nodiscard]]
 	bool IsWireframe() const
@@ -134,6 +170,26 @@ private:
 
 	struct State
 	{
+		std::string pendingLoadWorldPath;
+		std::string selectedId;
+
+		char newProjDir[512] = "C:/Projects";
+		char renameBuffer[128] = "";
+		char newProjName[64] = "MyGame";
+
+		float timescale = 1.f;
+		float fixedStep = 0.02f;
+
+		float vpZoom = 64.f;
+		float vpPanX = 0.f;
+		float vpPanY = 0.f;
+		float lastMenuBarH = 19.f;
+
+		float vpDragOffX = 0.f;
+		float vpDragOffY = 0.f;
+
+		PlayState playState = PlayState::Editing;
+
 		bool showStats = true;
 		bool showAbout = false;
 		bool showHierarchy = true;
@@ -141,37 +197,15 @@ private:
 		bool showViewport = true;
 		bool wireframe = false;
 
-		PlayState playState = PlayState::Editing;
-
-		float timescale = 1.f;
-		/** Seconds per fixed tick (50 Hz default) */
-		float fixedStep = 0.02f;
-		/** Consume one fixed tick while Paused */
 		bool stepFrameRequested = false;
-
 		bool showWorldSettings = false;
-
-		// "New Project" still needs a name field; directory is picked via native browser.
 		bool showNewProject = false;
-		char newProjDir[512] = "C:/Projects";
-		char newProjName[64] = "MyGame";
 		bool loadWorldRequested = false;
-		std::string pendingLoadWorldPath;
 
-		// hierarchy
-		std::string selectedId;
 		bool renamingEntity = false;
-		char renameBuffer[128] = "";
-
-		// 2-D viewport camera
-		float vpZoom = 64.f;   ///< Pixels per world unit. 64 == 100 %.
-		float vpPanX = 0.f;    ///< World position at viewport centre.
-		float vpPanY = 0.f;
 
 		bool vpPanning = false;
 		bool vpDragging = false;
-		float vpDragOffX = 0.f;
-		float vpDragOffY = 0.f;
 	} ui;
 
 	void DrawHierarchyPanel(World& world);

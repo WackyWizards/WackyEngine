@@ -2,7 +2,7 @@
 #include "Engine.h"
 #include "World.h"
 #include "ProjectManager.h"
-#include "renderer/Renderer.h"
+#include "editor/EditorRenderer.h"
 #include <iostream>
 #include <fstream>
 #include <mutex>
@@ -28,6 +28,8 @@ namespace
 		g_log << msg << "\n";
 		g_log.flush();
 	}
+
+	Renderer* s_renderer = nullptr;
 }
 
 namespace fs = std::filesystem;
@@ -114,6 +116,8 @@ struct GameDLL
 
 	GameDLL(const GameDLL&) = delete;
 	GameDLL& operator=(const GameDLL&) = delete;
+	GameDLL(GameDLL&&) = delete;
+	GameDLL& operator=(GameDLL&&) = delete;
 
 private:
 
@@ -444,6 +448,7 @@ void Engine::Run(const std::string& gameDllPath)
 			},
 			[&currentEntityTypes]() { return currentEntityTypes; }
 		);
+		s_renderer = &renderer;
 
 		EngineBindings bindings;
 		bindings.getDelta = []() -> float
@@ -457,6 +462,26 @@ void Engine::Run(const std::string& gameDllPath)
 		bindings.getFixedDelta = []() -> float
 			{
 				return s_fixedDelta;
+			};
+		bindings.loadTexture = [](const char* path) -> Texture* {
+			try {
+				return new Texture(s_renderer->LoadTexture(path));
+			}
+			catch (const std::exception& e) {
+				std::cout << "[Engine] LoadTexture failed: " << e.what() << "\n";
+				return nullptr;
+			}
+			};
+
+		bindings.bindTexture = [](const Texture* tex)
+			{
+				s_renderer->BindTexture(*tex);
+			};
+
+		bindings.destroyTexture = [](Texture* tex)
+			{
+				s_renderer->DestroyTexture(*tex);
+				delete tex;
 			};
 		bindings.keyHeld = [](Key k) -> bool
 			{

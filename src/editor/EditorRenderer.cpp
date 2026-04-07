@@ -1,4 +1,4 @@
-﻿#include "renderer/Renderer.h"
+﻿#include "editor/EditorRenderer.h"
 #include <iostream>
 #include <fstream>
 
@@ -139,14 +139,32 @@ void Renderer::DrawFrame(const SpriteList& scene, const EditorStats& stats, Worl
 		return;
 	}
 
+	// Compute camera transform
+	const float windowW = static_cast<float>(swapchainExtent.width);
+	const float windowH = static_cast<float>(swapchainExtent.height);
+	const float menuBarH = engineUI->GetMenuBarHeight();
+	const float leftW = engineUI->IsHierarchyVisible() ? 260.f : 0.f;
+	const float rightW = engineUI->IsPropertiesVisible() ? 300.f : 0.f;
+	const float vpW = std::max(1.f, windowW - leftW - rightW);
+	const float vpH = std::max(1.f, windowH - menuBarH);
+	const float cx = leftW + vpW * 0.5f; // screen-space viewport center
+	const float cy = menuBarH + vpH * 0.5f;
+	const float zoom = engineUI->GetVpZoom();
+
+	CameraUniforms cam{};
+	cam.ndcCenterX = cx / (windowW * 0.5f) - 1.f;
+	cam.ndcCenterY = cy / (windowH * 0.5f) - 1.f;
+	cam.scaleX = zoom / (windowW * 0.5f);
+	cam.scaleY = zoom / (windowH * 0.5f);
+	cam.panX = engineUI->GetVpPanX();
+	cam.panY = engineUI->GetVpPanY();
+
 	BeginRenderPass(ctx, scene);
-	DrawSprites(ctx, scene);
+	DrawSprites(ctx, scene, cam);
 	engineUI->Draw(ctx.cmd, stats, world);
 	EndRenderPass(ctx);
-
 	EndFrame(ctx);
 
-	/** If the wireframe toggle changed, rebuild the pipeline with the new polygon mode. */
 	if (engineUI->IsWireframe() != wireframeEnabled)
 	{
 		SetWireframe(engineUI->IsWireframe());
@@ -168,7 +186,7 @@ std::string Renderer::GetPendingWorldLoadPath() const
 	return engineUI->PendingWorldLoadPath();
 }
 
-void Renderer::ClearPendingWorldLoad()
+void Renderer::ClearPendingWorldLoad() const
 {
 	engineUI->ClearPendingWorldLoad();
 }
@@ -188,12 +206,12 @@ float Renderer::GetFixedStep() const
 	return engineUI->GetFixedStep();
 }
 
-bool Renderer::ConsumeStepFrame()
+bool Renderer::ConsumeStepFrame() const
 {
 	return engineUI->ConsumeStepFrame();
 }
 
-void Renderer::NotifyWorldRestored()
+void Renderer::NotifyWorldRestored() const
 {
 	engineUI->NotifyWorldRestored();
 }

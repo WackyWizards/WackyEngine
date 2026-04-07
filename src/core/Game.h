@@ -3,6 +3,7 @@
 #include "Entity.h"
 #include "EntityRegistry.h"
 #include "Reflection.h"
+#include "renderer/Texture.h"
 #include <vector>
 
 /** Button keys */
@@ -72,12 +73,16 @@ enum class Key : int
 
 struct Sprite
 {
-    /** NDC centre position */
-    float x = 0, y = 0;
-    /** Half-extents */
-    float halfW = 0, halfH = 0;
-    /** Color */
-    float r = 0, g = 0, b = 0;
+	/** NDC centre position */
+	float x = 0, y = 0;
+	/** Half-extents */
+	float halfW = 0, halfH = 0;
+	/** Color tint (multiplied with the texture sample, white = no tint) */
+	float r = 1, g = 1, b = 1;
+	/** UV rect into the texture atlas (normalized 0-1) */
+	float uvX = 0, uvY = 0, uvW = 1, uvH = 1;
+	/** 1 = sample bound texture, 0 = use solid color */
+	float textured = 0;
 };
 
 // Hard limit is the device's maxStorageBufferRange
@@ -86,33 +91,35 @@ static constexpr int MAX_SPRITES = 1024;
 
 struct SpriteList
 {
-    Sprite sprites[MAX_SPRITES];
-    unsigned count = 0;
+	Sprite sprites[MAX_SPRITES];
+	unsigned count = 0;
 
-    void Clear()
-    {
-        count = 0;
-    }
+	void Clear()
+	{
+		count = 0;
+	}
 
-    bool Push(const Sprite& s)
-    {
-        if (count >= MAX_SPRITES)
-        {
-            return false;
-        }
+	bool Push(const Sprite& s)
+	{
+		if (count >= MAX_SPRITES)
+		{
+			return false;
+		}
 
-        sprites[count++] = s;
-        return true;
-    }
+		sprites[count++] = s;
+		return true;
+	}
 };
 
 /**
-* Engine API
-* static inline members are per-DLL, the engine exe and game DLL each get their own copy.
-* Binding in the engine would never be seen by the DLL.
-*
-* Solution: the engine passes a plain struct of function pointers to Game::Init(). The API classes store them as plain (non-static) members on a singleton that lives inside the game DLL, so there's only one copy.
-*/
+ * Engine API
+ * static inline members are per-DLL, the engine exe and game DLL each get their own copy.
+ * Binding in the engine would never be seen by the DLL.
+ *
+ * Solution: the engine passes a plain struct of function pointers to Game::Init(). The API
+ * classes store them as plain (non-static) members on a singleton that lives inside the
+ * game DLL, so there's only one copy.
+ */
 struct EngineBindings
 {
 	/** Timescale-scaled frame delta (0 when paused) */
@@ -124,6 +131,26 @@ struct EngineBindings
 	bool (*keyHeld)(Key) = nullptr;
 	bool (*keyPressed)(Key) = nullptr;
 	void (*pushSprite)(Sprite) = nullptr;
+
+	/**
+	 * Loads a PNG from disk and uploads it to the GPU.
+	 * The returned pointer is owned by the engine and remains valid until
+	 * destroyTexture is called with it.
+	 */
+	Texture* (*loadTexture)(const char* path) = nullptr;
+
+	/**
+	 * Updates the pipeline's combined-image-sampler to point at tex.
+	 * Call once after loading, and again whenever you switch textures.
+	 * All textured sprites pushed this frame will use the last bound texture.
+	 */
+	void (*bindTexture)(const Texture* tex) = nullptr;
+
+	/**
+	 * Releases the GPU resources for tex and frees the pointer.
+	 * Do not use tex after this call.
+	 */
+	void (*destroyTexture)(Texture* tex) = nullptr;
 };
 
 // These live in the game DLL, set once in Game::Init, then used by the API classes.
@@ -174,6 +201,27 @@ struct Scene
 	{
 		g_engine.pushSprite(s);
 	}
+
+	/**
+	 * Pushes a textured quad using the currently bound texture.
+	 * uvX/uvY/uvW/uvH address a sub-rect of the texture in normalized 0-1 space,
+	 * which lets you pick individual frames out of a sprite sheet.
+	 * Defaults cover the entire texture (one frame).
+	 */
+	static void PushTextured(const float x, const float y, const float halfW, const float halfH, const float uvX = 0.f, const float uvY = 0.f, const float uvW = 1.f, const float uvH = 1.f)
+	{
+		Sprite s;
+		s.x = x;
+		s.y = y;
+		s.halfW = halfW;
+		s.halfH = halfH;
+		s.uvX = uvX;
+		s.uvY = uvY;
+		s.uvW = uvW;
+		s.uvH = uvH;
+		s.textured = 1.f;
+		g_engine.pushSprite(s);
+	}
 };
 
 class Game
@@ -198,9 +246,11 @@ public:
 	virtual void Shutdown() {}
 
 	/** This is virtual so we force dispatch through the vtable for custom registration, you aren't meant to override this in your game. */
+	[[nodiscard]]
 	virtual std::vector<EntityTypeInfo> GetEntityTypes() const;
 
 	/** This is virtual so we force dispatch through the vtable for custom registration, you aren't meant to override this in your game. */
+	[[nodiscard]]
 	virtual std::vector<std::pair<std::string, Field>> GetReflectedFields() const;
 };
 

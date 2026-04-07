@@ -51,15 +51,23 @@ public:
 		name = "Entity";
 	}
 
-	virtual ~Entity() = default;
+	virtual ~Entity() override = default;
+	
+	// @TODO: Move semantics if we care about being able to move entities.
+	
+	Entity(const Entity&) = delete;
+	Entity& operator=(const Entity&) = delete;
+	Entity(Entity&&) = delete;
+	Entity& operator=(Entity&&) = delete;
 
-	virtual const char* GetTypeName() const override
+	[[nodiscard]]
+	const char* GetTypeName() const override
 	{
 		return "Entity";
 	}
 
-	bool active = true;
 	Transform transform;
+	bool active = true;
 
 	/** Called once when the entity enters the world. */
 	virtual void OnSpawn() {}
@@ -78,6 +86,7 @@ public:
 	virtual void OnDestroy() {}
 
 	/** Valid after OnSpawn; never nullptr while the entity is alive. */
+	[[nodiscard]]
 	World* GetWorld() const;
 
 protected:

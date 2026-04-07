@@ -34,6 +34,7 @@ template<> struct TypeToFieldType<std::string>
 {
 	static constexpr FieldType value = FieldType::String;
 };
+
 // TODO: Add more specialisations
 
 using Getter = const void* (*)(const void*);

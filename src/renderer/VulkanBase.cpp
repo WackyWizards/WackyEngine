@@ -2,9 +2,13 @@
 #include <iostream>
 #include <fstream>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include <filesystem>
+
 namespace
 {
-	const char* VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
+	auto VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
 }
 
 /**
@@ -18,7 +22,7 @@ void VulkanBase::VkCheck(const VkResult result, const char* msg)
 		return;
 	}
 
-	const char* resultStr = "UNKNOWN";
+	auto resultStr = "UNKNOWN";
 	switch (result)
 	{
 	case VK_ERROR_OUT_OF_HOST_MEMORY:
@@ -96,6 +100,7 @@ void VulkanBase::VkCheck(const VkResult result, const char* msg)
 
 std::vector<char> VulkanBase::ReadFile(const std::string& path)
 {
+	std::cout << "[VulkanBase] Loading shader: " << std::filesystem::absolute(path) << "\n";
 	std::ifstream f(path, std::ios::ate | std::ios::binary);
 
 	if (!f.is_open())
@@ -103,10 +108,18 @@ std::vector<char> VulkanBase::ReadFile(const std::string& path)
 		throw std::runtime_error("Cannot open shader: " + path);
 	}
 
-	const size_t size = f.tellg();
-	std::vector<char> buf(size);
+	const std::streamsize size = f.tellg();
+
+	if (size < 0)
+	{
+		throw std::runtime_error("Failed to get file size");
+	}
+
+	std::vector<char> buf(static_cast<size_t>(size));
+
 	f.seekg(0);
 	f.read(buf.data(), size);
+
 	return buf;
 }
 
@@ -128,11 +141,7 @@ void VulkanBase::FramebufferResizeCallback(GLFWwindow* window, int, int)
 	base->framebufferResized = true;
 }
 
-/**
- * Constructor / Destructor
- */
-
-VulkanBase::VulkanBase(GLFWwindow* w, bool validation, bool wireframe)
+VulkanBase::VulkanBase(GLFWwindow* w, const bool validation, const bool wireframe)
 	: window(w)
 	, validationEnabled(validation)
 	, wireframeEnabled(wireframe)
@@ -156,6 +165,13 @@ VulkanBase::VulkanBase(GLFWwindow* w, bool validation, bool wireframe)
 	CreateCommandPool();
 	CreateCommandBuffers();
 	CreateSyncObjects();
+
+	/**
+	 * Upload the fallback white texture and bind it so descriptor set
+	 * binding 1 is never uninitialised before the first game texture is loaded.
+	 */
+	m_whiteTexture = CreateWhiteTexture();
+	BindTexture(m_whiteTexture);
 }
 
 VulkanBase::~VulkanBase()
@@ -185,6 +201,9 @@ VulkanBase::~VulkanBase()
 
 	vkDestroyDescriptorPool(device, spriteDescriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(device, spriteSetLayout, nullptr);
+
+	DestroyTexture(m_whiteTexture);
+
 	vkDestroyDevice(device, nullptr);
 	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
@@ -194,10 +213,6 @@ void VulkanBase::WaitIdle() const
 {
 	vkDeviceWaitIdle(device);
 }
-
-/**
- * Core setup
- */
 
 void VulkanBase::CreateInstance()
 {
@@ -231,7 +246,7 @@ void VulkanBase::CreateInstance()
 
 	uint32_t glfwExtCount = 0;
 	const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
-	std::vector<const char*> exts(glfwExts, glfwExts + glfwExtCount);
+	std::vector exts(glfwExts, glfwExts + glfwExtCount);
 
 	if (validationEnabled)
 	{
@@ -305,7 +320,7 @@ void VulkanBase::PickPhysicalDevice()
 
 void VulkanBase::CreateLogicalDevice()
 {
-	const float priority = 1.0f;
+	constexpr float priority = 1.0f;
 	std::vector<VkDeviceQueueCreateInfo> qcis;
 
 	for (const uint32_t fam : { graphicsFamily, presentFamily })
@@ -413,7 +428,7 @@ uint32_t VulkanBase::FindMemoryType(const uint32_t typeFilter, const VkMemoryPro
 
 	for (uint32_t i = 0; i < memProps.memoryTypeCount; i++)
 	{
-		if ((typeFilter & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & props) == props)
+		if (typeFilter & 1u << i && (memProps.memoryTypes[i].propertyFlags & props) == props)
 		{
 			return i;
 		}
@@ -421,10 +436,6 @@ uint32_t VulkanBase::FindMemoryType(const uint32_t typeFilter, const VkMemoryPro
 
 	throw std::runtime_error("FindMemoryType: no suitable memory type found");
 }
-
-/**
- * Swapchain setup
- */
 
 void VulkanBase::CreateSwapchain()
 {
@@ -532,10 +543,17 @@ void VulkanBase::CreateGraphicsPipeline()
 	stages[1].module = fMod;
 	stages[1].pName = "main";
 
+	VkPushConstantRange pcRange{};
+	pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	pcRange.offset = 0;
+	pcRange.size = sizeof(CameraUniforms);
+
 	VkPipelineLayoutCreateInfo layoutCI{};
 	layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layoutCI.setLayoutCount = 1;
 	layoutCI.pSetLayouts = &spriteSetLayout;
+	layoutCI.pushConstantRangeCount = 1;
+	layoutCI.pPushConstantRanges = &pcRange;
 	VkCheck(vkCreatePipelineLayout(device, &layoutCI, nullptr, &pipelineLayout), "vkCreatePipelineLayout");
 
 	VkPipelineVertexInputStateCreateInfo vi{};
@@ -576,6 +594,13 @@ void VulkanBase::CreateGraphicsPipeline()
 	ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineColorBlendAttachmentState cba{};
+	cba.blendEnable = VK_TRUE;
+	cba.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	cba.colorBlendOp = VK_BLEND_OP_ADD;
+	cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	cba.alphaBlendOp = VK_BLEND_OP_ADD;
 	cba.colorWriteMask =
 		VK_COLOR_COMPONENT_R_BIT |
 		VK_COLOR_COMPONENT_G_BIT |
@@ -699,27 +724,27 @@ bool VulkanBase::RecreateSwapchain()
 	return true;
 }
 
-/**
- * Sprite SSBO
- */
-
 void VulkanBase::CreateSpriteSetLayout()
 {
-	/**
-	 * Binding 0: the SpriteList storage buffer, visible to the vertex shader.
-	 * In HLSL/Slang: [[vk::binding(0,0)]] StructuredBuffer<SpriteList> spriteData;
-	 */
-	VkDescriptorSetLayoutBinding binding{};
-	binding.binding = 0;
-	binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	binding.descriptorCount = 1;
-	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	VkDescriptorSetLayoutBinding ssbo{};
+	ssbo.binding = 0;
+	ssbo.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	ssbo.descriptorCount = 1;
+	ssbo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutBinding sampler{};
+	sampler.binding = 1;
+	sampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	sampler.descriptorCount = 1;
+	sampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayoutBinding bindings[] = { ssbo, sampler };
 
 	VkDescriptorSetLayoutCreateInfo ci{};
 	ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	ci.bindingCount = 1;
-	ci.pBindings = &binding;
-	VkCheck(vkCreateDescriptorSetLayout(device, &ci, nullptr, &spriteSetLayout), "vkCreateDescriptorSetLayout sprite");
+	ci.bindingCount = 2;
+	ci.pBindings = bindings;
+	VkCheck(vkCreateDescriptorSetLayout(device, &ci, nullptr, &spriteSetLayout), "vkCreateDescriptorSetLayout");
 }
 
 void VulkanBase::CreateSpriteBuffers()
@@ -762,21 +787,23 @@ void VulkanBase::CreateSpriteBuffers()
 
 void VulkanBase::CreateSpriteDescriptorPool()
 {
-	VkDescriptorPoolSize poolSize{};
-	poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	VkDescriptorPoolSize poolSizes[2]{};
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
 	VkDescriptorPoolCreateInfo ci{};
 	ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	ci.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-	ci.poolSizeCount = 1;
-	ci.pPoolSizes = &poolSize;
-	VkCheck(vkCreateDescriptorPool(device, &ci, nullptr, &spriteDescriptorPool), "vkCreateDescriptorPool sprite");
+	ci.poolSizeCount = 2;
+	ci.pPoolSizes = poolSizes;
+	VkCheck(vkCreateDescriptorPool(device, &ci, nullptr, &spriteDescriptorPool), "vkCreateDescriptorPool");
 }
 
 void VulkanBase::CreateSpriteDescriptorSets()
 {
-	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, spriteSetLayout);
+	std::vector layouts(MAX_FRAMES_IN_FLIGHT, spriteSetLayout);
 
 	VkDescriptorSetAllocateInfo ai{};
 	ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -805,9 +832,324 @@ void VulkanBase::CreateSpriteDescriptorSets()
 	}
 }
 
-/**
- * Per-frame helpers
- */
+VkCommandBuffer VulkanBase::BeginSingleTimeCommands() const
+{
+	VkCommandBufferAllocateInfo ai{};
+	ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	ai.commandPool = commandPool;
+	ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	ai.commandBufferCount = 1;
+
+	VkCommandBuffer cmd;
+	VkCheck(vkAllocateCommandBuffers(device, &ai, &cmd), "vkAllocateCommandBuffers single-time");
+
+	VkCommandBufferBeginInfo bi{};
+	bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	VkCheck(vkBeginCommandBuffer(cmd, &bi), "vkBeginCommandBuffer single-time");
+
+	return cmd;
+}
+
+void VulkanBase::EndSingleTimeCommands(const VkCommandBuffer cmd) const
+{
+	VkCheck(vkEndCommandBuffer(cmd), "vkEndCommandBuffer single-time");
+
+	VkSubmitInfo si{};
+	si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	si.commandBufferCount = 1;
+	si.pCommandBuffers = &cmd;
+
+	VkCheck(vkQueueSubmit(graphicsQueue, 1, &si, VK_NULL_HANDLE), "vkQueueSubmit single-time");
+	vkQueueWaitIdle(graphicsQueue);
+	vkFreeCommandBuffers(device, commandPool, 1, &cmd);
+}
+
+void VulkanBase::CreateImage(const uint32_t w, const uint32_t h, const VkFormat fmt, const VkImageUsageFlags usage, VkImage& outImage, VkDeviceMemory& outMemory) const
+{
+	VkImageCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	ci.imageType = VK_IMAGE_TYPE_2D;
+	ci.format = fmt;
+	ci.extent = { w, h, 1 };
+	ci.mipLevels = 1;
+	ci.arrayLayers = 1;
+	ci.samples = VK_SAMPLE_COUNT_1_BIT;
+	ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+	ci.usage = usage;
+	ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VkCheck(vkCreateImage(device, &ci, nullptr, &outImage), "vkCreateImage");
+
+	VkMemoryRequirements req;
+	vkGetImageMemoryRequirements(device, outImage, &req);
+
+	VkMemoryAllocateInfo mai{};
+	mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mai.allocationSize = req.size;
+	mai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkCheck(vkAllocateMemory(device, &mai, nullptr, &outMemory), "vkAllocateMemory image");
+
+	vkBindImageMemory(device, outImage, outMemory, 0);
+}
+
+void VulkanBase::TransitionImageLayout(const VkImage image, const VkImageLayout oldLayout, const VkImageLayout newLayout) const
+{
+	const VkCommandBuffer cmd = BeginSingleTimeCommands();
+
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = oldLayout;
+	barrier.newLayout = newLayout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.layerCount = 1;
+
+	VkPipelineStageFlags srcStage;
+	VkPipelineStageFlags dstStage;
+
+	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	{
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	}
+	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	{
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	}
+	else
+	{
+		throw std::runtime_error("TransitionImageLayout: unsupported layout transition");
+	}
+
+	vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+	EndSingleTimeCommands(cmd);
+}
+
+void VulkanBase::CopyBufferToImage(const VkBuffer buffer, const VkImage image, const uint32_t w, const uint32_t h) const
+{
+	VkCommandBuffer cmd = BeginSingleTimeCommands();
+
+	VkBufferImageCopy region{};
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.layerCount = 1;
+	region.imageExtent = { w, h, 1 };
+
+	vkCmdCopyBufferToImage(cmd, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+	EndSingleTimeCommands(cmd);
+}
+
+VkImageView VulkanBase::CreateTextureImageView(const VkImage image) const
+{
+	VkImageViewCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	ci.image = image;
+	ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	ci.format = VK_FORMAT_R8G8B8A8_SRGB;
+	ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	ci.subresourceRange.levelCount = 1;
+	ci.subresourceRange.layerCount = 1;
+
+	VkImageView view;
+	VkCheck(vkCreateImageView(device, &ci, nullptr, &view), "vkCreateImageView texture");
+	return view;
+}
+
+VkSampler VulkanBase::CreateTextureSampler() const
+{
+	/**
+	 * NEAREST filtering preserves the hard pixel edges of Aseprite exports.
+	 * CLAMP_TO_EDGE prevents border bleed when UVs sit exactly on 0 or 1.
+	 */
+	VkSamplerCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	ci.magFilter = VK_FILTER_NEAREST;
+	ci.minFilter = VK_FILTER_NEAREST;
+	ci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	ci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	ci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	ci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+	VkSampler sampler;
+	VkCheck(vkCreateSampler(device, &ci, nullptr, &sampler), "vkCreateSampler");
+	return sampler;
+}
+
+Texture VulkanBase::CreateWhiteTexture() const
+{
+	/**
+	 * Upload a single opaque-white RGBA pixel.
+	 * Acts as the default texture so binding 1 is never uninitialised.
+	 */
+	constexpr uint32_t white = 0xFFFFFFFF;
+	constexpr VkDeviceSize size = sizeof(white);
+
+	VkBuffer stagingBuf;
+	VkDeviceMemory stagingMem;
+
+	VkBufferCreateInfo bci{};
+	bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bci.size = size;
+	bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkCheck(vkCreateBuffer(device, &bci, nullptr, &stagingBuf), "vkCreateBuffer white staging");
+
+	VkMemoryRequirements req;
+	vkGetBufferMemoryRequirements(device, stagingBuf, &req);
+
+	VkMemoryAllocateInfo mai{};
+	mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mai.allocationSize = req.size;
+	mai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	VkCheck(vkAllocateMemory(device, &mai, nullptr, &stagingMem), "vkAllocateMemory white staging");
+	vkBindBufferMemory(device, stagingBuf, stagingMem, 0);
+
+	void* dst;
+	vkMapMemory(device, stagingMem, 0, size, 0, &dst);
+	memcpy(dst, &white, sizeof(white));
+	vkUnmapMemory(device, stagingMem);
+
+	Texture tex;
+	tex.width = 1;
+	tex.height = 1;
+	CreateImage(1, 1, VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		tex.image, tex.memory);
+
+	TransitionImageLayout(tex.image,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	CopyBufferToImage(stagingBuf, tex.image, 1, 1);
+	TransitionImageLayout(tex.image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	vkDestroyBuffer(device, stagingBuf, nullptr);
+	vkFreeMemory(device, stagingMem, nullptr);
+
+	tex.view = CreateTextureImageView(tex.image);
+	tex.sampler = CreateTextureSampler();
+	return tex;
+}
+
+Texture VulkanBase::LoadTexture(const std::string& path) const
+{
+	int w, h, ch;
+	stbi_uc* pixels = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
+
+	if (!pixels)
+	{
+		throw std::runtime_error("LoadTexture: stbi_load failed: " + path);
+	}
+
+	const VkDeviceSize size = static_cast<VkDeviceSize>(w * h * 4);
+
+	VkBuffer stagingBuf;
+	VkDeviceMemory stagingMem;
+
+	VkBufferCreateInfo bci{};
+	bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bci.size = size;
+	bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkCheck(vkCreateBuffer(device, &bci, nullptr, &stagingBuf), "vkCreateBuffer texture staging");
+
+	VkMemoryRequirements req;
+	vkGetBufferMemoryRequirements(device, stagingBuf, &req);
+
+	VkMemoryAllocateInfo mai{};
+	mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mai.allocationSize = req.size;
+	mai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	VkCheck(vkAllocateMemory(device, &mai, nullptr, &stagingMem), "vkAllocateMemory texture staging");
+	vkBindBufferMemory(device, stagingBuf, stagingMem, 0);
+
+	void* dst;
+	vkMapMemory(device, stagingMem, 0, size, 0, &dst);
+	memcpy(dst, pixels, size);
+	vkUnmapMemory(device, stagingMem);
+	stbi_image_free(pixels);
+
+	Texture tex;
+	tex.width = w;
+	tex.height = h;
+	CreateImage(static_cast<uint32_t>(w), static_cast<uint32_t>(h),
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		tex.image, tex.memory);
+
+	TransitionImageLayout(tex.image,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	CopyBufferToImage(stagingBuf, tex.image, static_cast<uint32_t>(w), static_cast<uint32_t>(h));
+	TransitionImageLayout(tex.image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	vkDestroyBuffer(device, stagingBuf, nullptr);
+	vkFreeMemory(device, stagingMem, nullptr);
+
+	tex.view = CreateTextureImageView(tex.image);
+	tex.sampler = CreateTextureSampler();
+	return tex;
+}
+
+void VulkanBase::DestroyTexture(Texture& tex) const
+{
+	if (!tex.IsValid())
+	{
+		return;
+	}
+
+	vkDeviceWaitIdle(device);
+
+	vkDestroySampler(device, tex.sampler, nullptr);
+	vkDestroyImageView(device, tex.view, nullptr);
+	vkDestroyImage(device, tex.image, nullptr);
+	vkFreeMemory(device, tex.memory, nullptr);
+
+	tex = {};
+}
+
+void VulkanBase::BindTexture(const Texture& tex) const
+{
+	/**
+	 * Descriptor sets must not be updated while any command buffer that
+	 * references them is pending. Wait for the device to drain first.
+	 * BindTexture is a load-time / texture-switch operation, not a
+	 * per-frame hot path, so this stall is acceptable.
+	 */
+	vkDeviceWaitIdle(device);
+
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		VkDescriptorImageInfo imgInfo{};
+		imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imgInfo.imageView = tex.view;
+		imgInfo.sampler = tex.sampler;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = spriteDescriptorSets[i];
+		write.dstBinding = 1;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		write.pImageInfo = &imgInfo;
+		vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+	}
+}
 
 bool VulkanBase::BeginFrame(FrameContext& out)
 {
@@ -839,7 +1181,7 @@ bool VulkanBase::BeginFrame(FrameContext& out)
 	return true;
 }
 
-void VulkanBase::BeginRenderPass(const FrameContext& ctx, const SpriteList& scene)
+void VulkanBase::BeginRenderPass(const FrameContext& ctx, const SpriteList& scene) const
 {
 	/**
 	 * Upload this frame's scene data into the matching SSBO slot.
@@ -859,22 +1201,16 @@ void VulkanBase::BeginRenderPass(const FrameContext& ctx, const SpriteList& scen
 	vkCmdBeginRenderPass(ctx.cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void VulkanBase::DrawSprites(const FrameContext& ctx, const SpriteList& scene)
+void VulkanBase::DrawSprites(const FrameContext& ctx, const SpriteList& scene, const CameraUniforms& cam) const
 {
 	vkCmdBindPipeline(ctx.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-	vkCmdBindDescriptorSets(
-		ctx.cmd,
-		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipelineLayout,
-		0,
-		1, &spriteDescriptorSets[currentFrame],
-		0, nullptr
-	);
+	vkCmdPushConstants(ctx.cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(CameraUniforms), &cam);
+
+	vkCmdBindDescriptorSets(ctx.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &spriteDescriptorSets[currentFrame], 0, nullptr);
 
 	if (scene.count > 0)
 	{
-		/** 6 vertices per quad (2 triangles). */
 		vkCmdDraw(ctx.cmd, scene.count * 6, 1, 0, 0);
 	}
 }
