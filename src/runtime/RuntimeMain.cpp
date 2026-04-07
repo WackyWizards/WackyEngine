@@ -29,10 +29,12 @@ EngineBindings g_engine;
  */
 namespace
 {
+	static constexpr int MAX_KEY_CODE = 512;
+
 	static float s_scaledDelta = 0.f;
 	static float s_elapsed = 0.f;
 	static float s_fixedDelta = 0.02f;
-	static bool s_keys[512]{};
+	static bool s_keys[MAX_KEY_CODE]{};
 	static SpriteList s_pending{};
 	static RuntimeRenderer* s_runtimeRenderer = nullptr;
 }
@@ -162,7 +164,7 @@ void RuntimeRun(const std::string& startWorldPath)
 		renderer.DrawFrame(s_pending);
 
 		/** Key state */
-		for (int k = 0; k < 512; k++)
+		for (int k = 0; k < MAX_KEY_CODE; k++)
 		{
 			s_keys[k] = glfwGetKey(window, k) == GLFW_PRESS;
 		}
