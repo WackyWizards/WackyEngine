@@ -376,6 +376,19 @@ namespace ProjectManager
 			}
 
 			/**
+			 * Copy assets folder recursively if it exists.
+			 * Game code may reference sprites and other resources from assets/.
+			 */
+			const fs::path assetsDir = fs::path(project.directory) / "assets";
+			if (fs::exists(assetsDir) && fs::is_directory(assetsDir))
+			{
+				const fs::path distAssetsDir = distDir / "assets";
+				fs::remove_all(distAssetsDir);
+				fs::copy(assetsDir, distAssetsDir, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+				std::cout << "[Engine] Copied assets folder to: " << distAssetsDir.string() << "\n";
+			}
+
+			/**
 			 * Copy compiled shaders from the engine exe's directory into dist/.
 			 * RuntimeRenderer looks for vert.spv and frag.spv relative to the
 			 * working directory, so they must sit next to the exported exe.
