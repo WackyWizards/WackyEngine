@@ -52,9 +52,12 @@ public:
 	}
 
 	virtual ~Entity() override = default;
-	
-	// @TODO: Move semantics if we care about being able to move entities.
-	
+
+	/**
+	 * Move semantics are disabled because entities own GPU resources (textures)
+	 * and manage world pointers. Copying is also deleted to prevent accidental
+	 * duplication. Entities must be created/destroyed explicitly via World API.
+	 */
 	Entity(const Entity&) = delete;
 	Entity& operator=(const Entity&) = delete;
 	Entity(Entity&&) = delete;
