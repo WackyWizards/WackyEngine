@@ -46,17 +46,17 @@ using Setter = void (*)(void*, const void*);
  */
 struct Field
 {
-	std::string name;
-	FieldType type;
-
 	/** Offset in bytes from object base */
 	size_t offset;
-
+	
 	/** Size in bytes */
 	size_t size;
-
+	
 	Getter getter;
 	Setter setter;
+	
+	std::string name;
+	FieldType type;
 
 	/**
 	 * Gets a typed value from a field on an object instance.
