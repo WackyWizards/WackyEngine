@@ -6,13 +6,12 @@ x64/
 Debug/
 Release/
 
-# Visual Studio
+# IDE files
 .vs/
 *.VC.db
 *.VC.opendb
-
-# Rider
 .idea/
+*.vcxproj.user
 
 # Compiled objects
 *.obj
