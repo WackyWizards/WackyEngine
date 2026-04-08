@@ -4,7 +4,7 @@
 #include <vector>
 #include <map>
 
-enum class FieldType
+enum class FieldType : uint8_t
 {
 	Float,
 	Int,
