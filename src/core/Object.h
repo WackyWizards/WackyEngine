@@ -14,6 +14,11 @@ class Object
 {
 public:
 	virtual ~Object() = default;
+	
+	Object(const Object&) = delete;
+	Object& operator=(const Object&) = delete;
+	Object(Object&&) = delete;
+	Object& operator=(Object&&) = delete;
 
 	/** Human-readable name. */
 	std::string name = "Object";

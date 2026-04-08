@@ -230,6 +230,11 @@ public:
 	virtual ~Game() = default;
 
 	virtual void Init(const EngineBindings& bindings) = 0;
+	
+	Game(const Game&) = delete;
+	Game& operator=(const Game&) = delete;
+	Game(Game&&) = delete;
+	Game& operator=(Game&&) = delete;
 
 	/**
 	 * Called at a fixed rate (default 50 Hz) while Playing.
