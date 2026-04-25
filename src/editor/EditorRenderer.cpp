@@ -16,7 +16,7 @@ static void RLog(const char* msg)
  * Debug messenger (editor-only Vulkan callback)
  */
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void* )
+static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( const VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void* )
 {
 	if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
 	{
@@ -28,7 +28,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( VkDebugUtilsMessageSeverity
 
 static VkDebugUtilsMessengerEXT s_debugMessenger = VK_NULL_HANDLE;
 
-static void CreateDebugMessenger(VkInstance instance)
+static void CreateDebugMessenger(const VkInstance instance)
 {
 	VkDebugUtilsMessengerCreateInfoEXT ci{};
 	ci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -50,7 +50,7 @@ static void CreateDebugMessenger(VkInstance instance)
 	}
 }
 
-static void DestroyDebugMessenger(VkInstance instance)
+static void DestroyDebugMessenger(const VkInstance instance)
 {
 	if (s_debugMessenger == VK_NULL_HANDLE)
 	{

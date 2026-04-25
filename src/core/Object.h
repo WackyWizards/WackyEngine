@@ -31,6 +31,7 @@ public:
 	 */
 	std::string id;
 
+	[[nodiscard]]
 	virtual const char* GetTypeName() const
 	{
 		return "Object";
