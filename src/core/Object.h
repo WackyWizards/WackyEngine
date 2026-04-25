@@ -13,6 +13,7 @@
 class Object
 {
 public:
+	Object() = default;
 	virtual ~Object() = default;
 	
 	Object(const Object&) = delete;
@@ -25,7 +26,7 @@ public:
 
 	/**
 	 * RFC-4122 GUID, e.g. "3F2504E0-4F89-41D3-9A0C-0305E82C3301".
-	 * Stable across serialise/deserialise round-trips because it is written to
+	 * Stable across serialize/deserialize round-trips because it is written to
 	 * and read back from the world JSON verbatim.
 	 */
 	std::string id;

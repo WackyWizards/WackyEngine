@@ -227,6 +227,7 @@ struct Scene
 class Game
 {
 public:
+	Game() = default;
 	virtual ~Game() = default;
 
 	virtual void Init(const EngineBindings& bindings) = 0;
