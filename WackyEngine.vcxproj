@@ -193,7 +193,6 @@ xcopy /y "$(ProjectDir)vendor\slang\2026.3.1\slang.dll"        "$(OutDir)"</Comm
     <ClInclude Include="src\editor\EditorRenderer.h" />
     <ClInclude Include="src\editor\EngineUI.h" />
     <ClInclude Include="src\entities\Spinner.h" />
-    <ClInclude Include="src\renderer\stb_image.h" />
     <ClInclude Include="src\renderer\Texture.h" />
     <ClInclude Include="src\renderer\VulkanBase.h" />
     <ClInclude Include="src\runtime\renderer\RuntimeRenderer.h" />
